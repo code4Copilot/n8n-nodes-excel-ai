@@ -1,0 +1,40 @@
+# Source files
+nodes/
+*.ts
+!*.d.ts
+
+# Config files
+tsconfig.json
+tsconfig.test.json
+jest.config.js
+gulpfile.js
+.eslintrc.js
+.eslintrc.prepublish.js
+.prettierrc
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+coverage/
+
+# Documentation (keep README)
+AI-AGENT-TESTING.md
+QUICK-TEST-GUIDE.md
+TEST-COVERAGE-SUMMARY.md
+TESTING.md
+UNIT-TEST-CHECKLIST.md
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
