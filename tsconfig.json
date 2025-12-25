@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",              // 目標 JavaScript 版本
+    "module": "commonjs",            // 模組系統 (n8n 使用 CommonJS)
+    "outDir": "./dist",              // 編譯輸出目錄
+    "rootDir": "./",                 // 原始碼根目錄
+    "strict": true,                  // 啟用嚴格模式檢查
+    "declaration": true,             // 生成 .d.ts 型別定義檔案
+    "sourceMap": true,               // 生成 source map (方便除錯)
+    "esModuleInterop": true,         // 與 ES 模組互通
+    "skipLibCheck": true,            // 跳過函式庫型別檢查 (加速編譯)
+    "types": ["node", "jest"]       // 包含 Node.js 和 Jest 型別定義
+  },
+  "include": [
+    "nodes/**/*",                    // 編譯 nodes 目錄
+    "credentials/**/*"               // 編譯 credentials 目錄
+  ],
+  "exclude": [
+    "node_modules",                  // 排除依賴
+    "dist",                          // 排除輸出目錄
+    "**/*.test.ts"                   // 排除測試檔案
+  ]
+}

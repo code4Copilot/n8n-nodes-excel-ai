@@ -1,0 +1,16 @@
+{
+  "node": "n8n-nodes-excel-ai",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["Core Nodes"],
+  "resources": {
+    "credentialDocumentation": [],
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/code4Copilot/n8n-nodes-excel-ai"
+      }
+    ],
+    "generic": []
+  },
+  "alias": ["Excel", "Spreadsheet", "XLSX", "XLS"]
+}

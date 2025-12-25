@@ -1,0 +1,71 @@
+{
+  "name": "n8n-nodes-excel-ai",
+  "version": "1.0.0",
+  "description": "Excel CRUD operations for n8n with AI Agent support - Perform read, write, update, delete operations on Excel files",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "excel",
+    "xlsx",
+    "spreadsheet",
+    "crud",
+    "ai-agent",
+    "exceljs",
+    "data-processing"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/code4Copilot/n8n-nodes-excel-ai",
+  "author": {
+    "name": "Hueyan Chen",
+    "email": "hueyan.chen@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/code4Copilot/n8n-nodes-excel-ai.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "format": "prettier nodes --write",
+    "lint": "eslint nodes",
+    "lintfix": "eslint nodes --fix",
+    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ai": "jest --testPathPattern=ai-agent.test.ts",
+    "test:unit": "jest --testPathPattern=node.test.ts",
+    "test:verbose": "jest --verbose"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [],
+    "nodes": [
+      "dist/nodes/ExcelAI/ExcelAI.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^18.16.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-n8n-nodes-base": "^1.11.0",
+    "gulp": "^4.0.2",
+    "jest": "^29.5.0",
+    "n8n-workflow": "*",
+    "prettier": "^2.7.1",
+    "ts-jest": "^29.1.0",
+    "typescript": "5.1.6"
+  },
+  "dependencies": {
+    "exceljs": "^4.3.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}
