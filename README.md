@@ -503,7 +503,7 @@ AI Agent Chat → Excel CRUD (Multiple Operations) → Response
 Excel CRUD (Read Rows) → Aggregate → Excel CRUD (Create Worksheet) → Email
 ```
 
-## ?�� Testing
+## 🧪 Testing
 
 ```bash
 # Run all tests
@@ -545,19 +545,15 @@ npm run lintfix
 - 🐛 Better error messages
 - 📚 Comprehensive AI usage documentation
 
-### v1.2.0
+### v1.0.0
 - Added worksheet operations
 - Binary data support
 - Auto-save option
-
-### v1.1.0
 - Find rows operation
 - Advanced search with match types
 - Insert row operation
-
-### v1.0.0
 - Initial release
-- Basic CRUD operations
+- Basic CRUD operations and AI Agent support
 - File path support
 
 ## 🤝 Contributing
