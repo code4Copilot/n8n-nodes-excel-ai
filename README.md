@@ -537,15 +537,13 @@ npm run lintfix
 
 ## 📝 Changelog
 
-### v1.3.0 (Latest)
+### v1.0.0 (Latest)
 - ✨ Added full AI Agent integration (`usableAsTool: true`)
 - ✨ Automatic column detection and mapping
 - ✨ Enhanced JSON data handling
 - 📝 Improved parameter descriptions for AI
 - 🐛 Better error messages
 - 📚 Comprehensive AI usage documentation
-
-### v1.0.0
 - Added worksheet operations
 - Binary data support
 - Auto-save option
@@ -553,7 +551,7 @@ npm run lintfix
 - Advanced search with match types
 - Insert row operation
 - Initial release
-- Basic CRUD operations and AI Agent support
+- Basic CRUD operations
 - File path support
 
 ## 🤝 Contributing
