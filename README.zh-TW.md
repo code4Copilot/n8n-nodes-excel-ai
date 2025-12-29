@@ -45,6 +45,25 @@ cd ~/.n8n/nodes
 npm install n8n-nodes-excel-ai
 ```
 
+#### 🔒 安全性：修復 form-data 漏洞
+
+為了解決來自 `n8n-workflow` 的 `form-data` 安全漏洞，請在安裝目錄的 `package.json` 中加入：
+
+```json
+{
+  "overrides": {
+    "form-data": "^4.0.4"
+  }
+}
+```
+
+然後重新安裝：
+
+```bash
+npm install
+npm audit
+```
+
 ### 選項 2：Docker
 
 在您的 `docker-compose.yml` 中新增：

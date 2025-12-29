@@ -45,6 +45,25 @@ cd ~/.n8n/nodes
 npm install n8n-nodes-excel-ai
 ```
 
+#### 🔒 Security: Fix form-data Vulnerability
+
+To resolve the `form-data` security vulnerability from `n8n-workflow`, add this to your `package.json` in the installation directory:
+
+```json
+{
+  "overrides": {
+    "form-data": "^4.0.4"
+  }
+}
+```
+
+Then reinstall:
+
+```bash
+npm install
+npm audit
+```
+
 ### Option 2: Docker
 
 Add to your `docker-compose.yml`:
