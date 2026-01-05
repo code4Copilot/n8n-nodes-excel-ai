@@ -19,7 +19,7 @@ A powerful n8n community node for performing CRUD (Create, Read, Update, Delete)
 - **Create**: Add new rows with automatic column mapping
 - **Update**: Modify existing rows with partial updates
 - **Delete**: Remove rows by row number
-- **Search**: Find rows with advanced matching (exact, contains, starts/ends with)
+- **Filter**: Filter rows with advanced conditions and multiple operators
 
 ### 🗂️ Worksheet Management
 - **List Worksheets**: Get all sheets in a workbook
@@ -147,17 +147,19 @@ Row Data: {"Name": "Bob Wilson", "Email": "bob@example.com", "Status": "Active"}
 }
 ```
 
-#### 3. Find Rows
+#### 3. Filter Rows
 
 ```javascript
 // Node Configuration
 Resource: Row
-Operation: Find Rows
+Operation: Filter Rows
 File Path: /data/customers.xlsx
 Sheet Name: Customers
-Search Column: Status
-Search Value: Active
-Match Type: exact
+Filter Conditions:
+  - Field: Status
+  - Operator: equals
+  - Value: Active
+Condition Logic: and
 
 // Output
 [
@@ -200,23 +202,25 @@ Match Type: exact
 }
 ```
 
-#### Example 3: Search with AI
+#### Example 3: Filter with AI
 
 **User:** "Find all active customers in Boston"
 
 **AI Agent Execution:**
 ```javascript
 {
-  "operation": "findRows",
+  "operation": "filterRows",
   "filePath": "/data/customers.xlsx",
   "sheetName": "Customers",
-  "searchColumn": "Status",
-  "searchValue": "Active",
-  "matchType": "exact"
+  "filterConditions": {
+    "conditions": [
+      { "field": "Status", "operator": "equals", "value": "Active" },
+      { "field": "City", "operator": "equals", "value": "Boston" }
+    ]
+  },
+  "conditionLogic": "and"
 }
 ```
-
-Then filter by City in subsequent operation.
 
 ## 📚 Operations Reference
 
@@ -255,14 +259,117 @@ Then filter by City in subsequent operation.
   - `rowNumber`: Row to delete (cannot be 1 - header row)
 - **Returns**: Success status
 
-#### Find Rows
-- **Purpose**: Search for rows matching criteria
+#### Filter Rows
+- **Purpose**: Filter rows with multiple conditions and logical operators
 - **Parameters**:
-  - `searchColumn`: Column to search in
-  - `searchValue`: Value to search for
-  - `matchType`: exact | contains | startsWith | endsWith
-  - `returnRowNumbers`: Return only row numbers (default: false)
-- **Returns**: Array of matching rows or row numbers
+  - `filterConditions`: Array of filter conditions, each with:
+    - `field`: Column name to filter
+    - `operator`: equals | notEquals | contains | notContains | greaterThan | greaterOrEqual | lessThan | lessOrEqual | startsWith | endsWith | isEmpty | isNotEmpty
+    - `value`: Value to compare (not required for isEmpty/isNotEmpty)
+  - `conditionLogic`: and | or - How to combine multiple conditions
+- **Returns**: Array of matching rows with _rowNumber field
+
+**Filter Rows Examples:**
+
+1. **Single Condition - Exact Match:**
+```javascript
+{
+  "operation": "filterRows",
+  "filePath": "/data/employees.xlsx",
+  "sheetName": "Staff",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Department", "operator": "equals", "value": "Engineering" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+2. **Multiple Conditions with AND:**
+```javascript
+{
+  "operation": "filterRows",
+  "filePath": "/data/products.xlsx",
+  "sheetName": "Inventory",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Category", "operator": "equals", "value": "Electronics" },
+      { "field": "Price", "operator": "greaterThan", "value": "100" },
+      { "field": "Stock", "operator": "greaterThan", "value": "0" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+3. **Multiple Conditions with OR:**
+```javascript
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Priority", "operator": "equals", "value": "High" },
+      { "field": "Priority", "operator": "equals", "value": "Urgent" }
+    ]
+  },
+  "conditionLogic": "or"
+}
+```
+
+4. **Text Search with Contains:**
+```javascript
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Email", "operator": "contains", "value": "@company.com" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+5. **Check for Empty Fields:**
+```javascript
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Phone", "operator": "isEmpty" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+6. **Range Filter:**
+```javascript
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Age", "operator": "greaterOrEqual", "value": "18" },
+      { "field": "Age", "operator": "lessOrEqual", "value": "65" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+**Available Operators:**
+- `equals` - Exact match
+- `notEquals` - Not equal to
+- `contains` - Text contains substring
+- `notContains` - Text does not contain substring
+- `greaterThan` - Numeric greater than
+- `greaterOrEqual` - Numeric greater than or equal
+- `lessThan` - Numeric less than
+- `lessOrEqual` - Numeric less than or equal
+- `startsWith` - Text starts with
+- `endsWith` - Text ends with
+- `isEmpty` - Field is empty or null
+- `isNotEmpty` - Field has a value
 
 ### Worksheet Operations
 
@@ -469,7 +576,7 @@ The node automatically detects columns from the header row (row 1) and maps your
 // Error Response Format
 {
   "error": "Column 'InvalidColumn' not found",
-  "operation": "findRows",
+  "operation": "filterRows",
   "resource": "row"
 }
 ```
@@ -556,22 +663,44 @@ npm run lintfix
 
 ## 📝 Changelog
 
-### v1.0.0 (Latest)
+### v1.0.3 (2026-01-05) - Current
+- 🔄 **BREAKING CHANGE**: Replaced `Find Rows` operation with more powerful `Filter Rows`
+- ✨ **Filter Rows Features**:
+  - Support for 12 advanced operators (equals, notEquals, contains, notContains, greaterThan, greaterOrEqual, lessThan, lessOrEqual, startsWith, endsWith, isEmpty, isNotEmpty)
+  - Multiple filter conditions with AND/OR logic
+  - Automatic row number tracking in results
+  - Support for both File Path and Binary Data modes
+  - Complex filtering scenarios (ranges, text search, empty checks)
+- 📝 Updated documentation with comprehensive Filter Rows examples
+- 🧪 Added 14 new test cases for Filter Rows functionality
+- 📚 Enhanced AI Agent examples with Filter Rows usage
+
+### v1.0.2
+- 🐛 Bug fixes and performance improvements
+- 📝 Documentation updates
+
+### v1.0.1
+- 🔧 Minor improvements
+- 📝 README enhancements
+
+### v1.0.0
 - ✨ Added full AI Agent integration (`usableAsTool: true`)
 - ✨ Automatic column detection and mapping
 - ✨ Enhanced JSON data handling
 - 📝 Improved parameter descriptions for AI
 - 🐛 Better error messages
 - 📚 Comprehensive AI usage documentation
-- Added worksheet operations
-- Binary data support
-- Auto-save option
-- Find rows operation
-- Advanced search with match types
-- Insert row operation
-- Initial release
-- Basic CRUD operations
-- File path support
+- ➕ Added worksheet operations (List, Create, Delete, Rename, Copy, Get Info)
+- ➕ Binary data support
+- ➕ Auto-save option
+- ➕ Insert row operation
+- ➕ Find rows operation (deprecated in v1.0.3)
+
+### v0.9.0
+- 🎉 Initial release
+- ✅ Basic CRUD operations (Create, Read, Update, Delete)
+- ✅ File path support
+- ✅ Excel file handling with ExcelJS
 
 ## 🤝 Contributing
 

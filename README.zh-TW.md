@@ -19,7 +19,7 @@
 - **新增**：使用自動欄位映射新增列
 - **更新**：部分更新現有列
 - **刪除**：依行號刪除列
-- **搜尋**：使用進階匹配尋找行（精確匹配、包含、開頭/結尾匹配）
+- **過濾**：使用進階條件和多種運算符過濾列
 
 ### 🗂️ 工作表管理
 - **列出工作表**：取得活頁簿中的所有工作表
@@ -143,16 +143,18 @@ npm link n8n-nodes-excel-ai
 }
 ```
 
-#### 3. 尋找列
+#### 3. 過濾列
 ```javascript
 // 節點設定
 資源：列
-操作：尋找列
+操作：過濾列
 檔案路徑：/data/customers.xlsx
 工作表名稱：Customers
-搜尋欄位：Status
-搜尋值：Active
-匹配類型：exact
+過濾條件：
+  - 欄位：Status
+  - 運算符：equals
+  - 值：Active
+條件邏輯：and
 
 // 輸出
 [
@@ -195,23 +197,25 @@ npm link n8n-nodes-excel-ai
 }
 ```
 
-#### 範例 3：使用 AI 搜尋
+#### 範例 3：使用 AI 過濾
 
 **使用者：** "找出波士頓的所有活躍客戶"
 
 **AI Agent 執行：**
 ```javascript
 {
-  "operation": "findRows",
+  "operation": "filterRows",
   "filePath": "/data/customers.xlsx",
   "sheetName": "Customers",
-  "searchColumn": "Status",
-  "searchValue": "Active",
-  "matchType": "exact"
+  "filterConditions": {
+    "conditions": [
+      { "field": "Status", "operator": "equals", "value": "Active" },
+      { "field": "City", "operator": "equals", "value": "Boston" }
+    ]
+  },
+  "conditionLogic": "and"
 }
 ```
-
-然後在後續操作中按城市篩選。
 
 ## 📚 操作參考
 
@@ -250,14 +254,117 @@ npm link n8n-nodes-excel-ai
   - `rowNumber`：要刪除的列（不能是 1 - 標題列）
 - **返回**：成功狀態
 
-#### 尋找列
-- **用途**：搜尋符合條件的列
+#### 過濾列
+- **用途**：使用多個條件和邏輯運算符過濾列
 - **參數**：
-  - `searchColumn`：要搜尋的欄位
-  - `searchValue`：要搜尋的值
-  - `matchType`：exact | contains | startsWith | endsWith
-  - `returnRowNumbers`：只返回列號（預設：false）
-- **返回**：符合列的陣列或列號
+  - `filterConditions`：過濾條件陣列，每個條件包含：
+    - `field`：要過濾的欄位名稱
+    - `operator`：equals | notEquals | contains | notContains | greaterThan | greaterOrEqual | lessThan | lessOrEqual | startsWith | endsWith | isEmpty | isNotEmpty
+    - `value`：要比較的值（isEmpty/isNotEmpty 不需要）
+  - `conditionLogic`：and | or - 如何組合多個條件
+- **返回**：符合的列陣列，包含 _rowNumber 欄位
+
+**過濾列範例：**
+
+1. **單一條件 - 精確匹配：**
+```javascript
+{
+  "operation": "filterRows",
+  "filePath": "/data/employees.xlsx",
+  "sheetName": "Staff",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Department", "operator": "equals", "value": "Engineering" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+2. **使用 AND 的多條件：**
+```javascript
+{
+  "operation": "filterRows",
+  "filePath": "/data/products.xlsx",
+  "sheetName": "Inventory",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Category", "operator": "equals", "value": "Electronics" },
+      { "field": "Price", "operator": "greaterThan", "value": "100" },
+      { "field": "Stock", "operator": "greaterThan", "value": "0" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+3. **使用 OR 的多條件：**
+```javascript
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Priority", "operator": "equals", "value": "High" },
+      { "field": "Priority", "operator": "equals", "value": "Urgent" }
+    ]
+  },
+  "conditionLogic": "or"
+}
+```
+
+4. **使用 Contains 的文字搜尋：**
+```javascript
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Email", "operator": "contains", "value": "@company.com" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+5. **檢查空白欄位：**
+```javascript
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Phone", "operator": "isEmpty" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+6. **範圍過濾：**
+```javascript
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Age", "operator": "greaterOrEqual", "value": "18" },
+      { "field": "Age", "operator": "lessOrEqual", "value": "65" }
+    ]
+  },
+  "conditionLogic": "and"
+}
+```
+
+**可用運算符：**
+- `equals` - 精確匹配
+- `notEquals` - 不等於
+- `contains` - 文字包含子字串
+- `notContains` - 文字不包含子字串
+- `greaterThan` - 數值大於
+- `greaterOrEqual` - 數值大於或等於
+- `lessThan` - 數值小於
+- `lessOrEqual` - 數值小於或等於
+- `startsWith` - 文字開始於
+- `endsWith` - 文字結束於
+- `isEmpty` - 欄位為空或 null
+- `isNotEmpty` - 欄位有值
 
 ### 工作表操作
 
@@ -464,7 +571,7 @@ AI Agent → Excel AI 節點
 // 錯誤回應格式
 {
   "error": "Column 'InvalidColumn' not found",
-  "operation": "findRows",
+  "operation": "filterRows",
   "resource": "row"
 }
 ```
@@ -551,22 +658,44 @@ npm run lintfix
 
 ## 📝 變更日誌
 
-### v1.0.0（最新）
+### v1.0.3 (2026-01-05) - 目前版本
+- 🔄 **重大變更**：將 `尋找列` 操作替換為更強大的 `過濾列`
+- ✨ **過濾列功能**：
+  - 支援 12 種進階運算符（equals、notEquals、contains、notContains、greaterThan、greaterOrEqual、lessThan、lessOrEqual、startsWith、endsWith、isEmpty、isNotEmpty）
+  - 支援 AND/OR 邏輯的多重過濾條件
+  - 結果自動追蹤行號
+  - 支援檔案路徑和二進位資料模式
+  - 支援複雜過濾場景（範圍、文字搜尋、空值檢查）
+- 📝 更新文件，提供完整的過濾列範例
+- 🧪 新增 14 個過濾列功能測試案例
+- 📚 增強 AI Agent 範例，展示過濾列用法
+
+### v1.0.2
+- 🐛 錯誤修復和效能改進
+- 📝 文件更新
+
+### v1.0.1
+- 🔧 小幅改進
+- 📝 README 增強
+
+### v1.0.0
 - ✨ 新增完整的 AI Agent 整合（`usableAsTool: true`）
 - ✨ 自動欄位偵測和映射
 - ✨ 增強的 JSON 資料處理
 - 📝 改進 AI 的參數描述
 - 🐛 更好的錯誤訊息
 - 📚 全面的 AI 使用文件
-- 新增工作表操作
-- 二進位資料支援
-- 自動儲存選項
-- 尋找列操作
-- 帶匹配類型的進階搜尋
-- 插入列操作
-- 初始版本
-- 基本 CRUD 操作
-- 檔案路徑支援
+- ➕ 新增工作表操作（列表、建立、刪除、重新命名、複製、取得資訊）
+- ➕ 二進位資料支援
+- ➕ 自動儲存選項
+- ➕ 插入列操作
+- ➕ 尋找列操作（在 v1.0.3 中已棄用）
+
+### v0.9.0
+- 🎉 初始版本
+- ✅ 基本 CRUD 操作（新增、讀取、更新、刪除）
+- ✅ 檔案路徑支援
+- ✅ 使用 ExcelJS 處理 Excel 檔案
 
 ## 🤝 貢獻
 
