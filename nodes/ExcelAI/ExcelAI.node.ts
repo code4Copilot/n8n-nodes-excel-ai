@@ -121,6 +121,12 @@ export class ExcelAI implements INodeType {
 						action: 'Read rows from Excel',
 					},
 					{
+						name: 'Filter Rows',
+						value: 'filterRows',
+						description: 'Filter rows by conditions',
+						action: 'Filter rows in Excel',
+					},
+					{
 						name: 'Append Row',
 						value: 'appendRow',
 						description: 'Add a new row at the end',
@@ -143,12 +149,6 @@ export class ExcelAI implements INodeType {
 						value: 'deleteRow',
 						description: 'Delete a specific row',
 						action: 'Delete row from Excel',
-					},
-					{
-						name: 'Find Rows',
-						value: 'findRows',
-						description: 'Search for rows matching criteria',
-						action: 'Find rows in Excel',
 					},
 				],
 				default: 'readRows',
@@ -183,67 +183,66 @@ export class ExcelAI implements INodeType {
 						description: 'Delete a worksheet',
 						action: 'Delete worksheet from Excel',
 					},
-				{
-					name: 'Rename Worksheet',
-					value: 'renameWorksheet',
-					description: 'Rename an existing worksheet',
-					action: 'Rename worksheet in Excel',
-				},
-				{
-					name: 'Copy Worksheet',
-					value: 'copyWorksheet',
-					description: 'Copy a worksheet to a new worksheet',
-					action: 'Copy worksheet in Excel',
-				},
-				{
-					name: 'Get Worksheet Info',
-					value: 'getWorksheetInfo',
-					description: 'Get detailed information about a worksheet including columns',
-					action: 'Get worksheet info from Excel',
-				},
-			],
-			default: 'listWorksheets',
-		},
-
-		// Sheet Name Options for File Path Mode (Row Operations)
-		{
-			displayName: 'Sheet Name',
-			name: 'sheetNameOptions',
-			type: 'options',
-			displayOptions: {
-				show: {
-					inputMode: ['filePath'],
-					resource: ['row'],
-				},
+					{
+						name: 'Rename Worksheet',
+						value: 'renameWorksheet',
+						description: 'Rename an existing worksheet',
+						action: 'Rename worksheet in Excel',
+					},
+					{
+						name: 'Copy Worksheet',
+						value: 'copyWorksheet',
+						description: 'Copy a worksheet to a new worksheet',
+						action: 'Copy worksheet in Excel',
+					},
+					{
+						name: 'Get Worksheet Info',
+						value: 'getWorksheetInfo',
+						description: 'Get detailed information about a worksheet including columns',
+						action: 'Get worksheet info from Excel',
+					},
+				],
+				default: 'listWorksheets',
 			},
-			typeOptions: {
-				loadOptionsMethod: 'getWorksheets',
-				loadOptionsDependsOn: ['filePath'],
+
+			// Sheet Name Options for File Path Mode (Row Operations)
+			{
+				displayName: 'Sheet Name',
+				name: 'sheetNameOptions',
+				type: 'options',
+				displayOptions: {
+					show: {
+						inputMode: ['filePath'],
+						resource: ['row'],
+					},
+				},
+				typeOptions: {
+					loadOptionsMethod: 'getWorksheets',
+					loadOptionsDependsOn: ['filePath'],
+				},
+				default: '',
+				required: false,
+				description: 'Name of the worksheet to operate on. If not specified, the first worksheet will be used.',
 			},
-			default: '',
-			required: false,
-			description: 'Name of the worksheet to operate on. If not specified, the first worksheet will be used.',
-		},
 
-
-	// Sheet Name for Binary Mode
-	{
-		displayName: 'Sheet Name',
-		name: 'sheetName',
-		type: 'string',
-		displayOptions: {
-			show: {
-				inputMode: ['binaryData'],
-				resource: ['row'],
+			// Sheet Name for Binary Mode
+			{
+				displayName: 'Sheet Name',
+				name: 'sheetName',
+				type: 'string',
+				displayOptions: {
+					show: {
+						inputMode: ['binaryData'],
+						resource: ['row'],
+					},
+				},
+				default: '',
+				required: false,
+				description: 'Name of the worksheet to operate on. If not specified, the first worksheet will be used.',
 			},
-		},
-		default: '',
-		required: false,
-		description: 'Name of the worksheet to operate on. If not specified, the first worksheet will be used.',
-	},
 
-	// Read Rows Parameters
-	{
+			// Read Rows Parameters
+			{
 				displayName: 'Start Row',
 				name: 'startRow',
 				type: 'number',
@@ -268,6 +267,149 @@ export class ExcelAI implements INodeType {
 				},
 				default: 0,
 				description: 'Row number to end reading (0 means read all rows)',
+			},
+
+			// Filter Rows Parameters (File Path Mode)
+			{
+				displayName: 'Filter Conditions',
+				name: 'filterConditions',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true },
+				displayOptions: { 
+					show: { 
+						resource: ['row'],
+						operation: ['filterRows'],
+						inputMode: ['filePath'],
+					} 
+				},
+				default: {},
+				options: [
+					{
+						name: 'conditions',
+						displayName: 'Condition',
+						values: [
+							{ 
+								displayName: 'Field Name', 
+								name: 'field', 
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getColumns',
+									loadOptionsDependsOn: ['filePath', 'sheetNameOptions'],
+								},
+								default: '',
+								description: 'Column to filter on',
+							},
+							{
+								displayName: 'Operator',
+								name: 'operator',
+								type: 'options',
+								options: [
+									{ name: 'Equals', value: 'equals' },
+									{ name: 'Not Equals', value: 'notEquals' },
+									{ name: 'Contains', value: 'contains' },
+									{ name: 'Not Contains', value: 'notContains' },
+									{ name: 'Greater Than', value: 'greaterThan' },
+									{ name: 'Greater or Equal', value: 'greaterOrEqual' },
+									{ name: 'Less Than', value: 'lessThan' },
+									{ name: 'Less or Equal', value: 'lessOrEqual' },
+									{ name: 'Starts With', value: 'startsWith' },
+									{ name: 'Ends With', value: 'endsWith' },
+									{ name: 'Is Empty', value: 'isEmpty' },
+									{ name: 'Is Not Empty', value: 'isNotEmpty' },
+								],
+								default: 'equals',
+							},
+							{ 
+								displayName: 'Value', 
+								name: 'value', 
+								type: 'string', 
+								default: '', 
+								displayOptions: { 
+									hide: { 
+										operator: ['isEmpty', 'isNotEmpty'] 
+									} 
+								} 
+							},
+						],
+					},
+				],
+			},
+			// Filter Rows Parameters (Binary Data Mode)
+			{
+				displayName: 'Filter Conditions',
+				name: 'filterConditionsBinary',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true },
+				displayOptions: { 
+					show: { 
+						resource: ['row'],
+						operation: ['filterRows'],
+						inputMode: ['binaryData'],
+					} 
+				},
+				default: {},
+				options: [
+					{
+						name: 'conditions',
+						displayName: 'Condition',
+						values: [
+							{ 
+								displayName: 'Field Name', 
+								name: 'field', 
+								type: 'string',
+								default: '',
+								description: 'Column name to filter on',
+							},
+							{
+								displayName: 'Operator',
+								name: 'operator',
+								type: 'options',
+								options: [
+									{ name: 'Equals', value: 'equals' },
+									{ name: 'Not Equals', value: 'notEquals' },
+									{ name: 'Contains', value: 'contains' },
+									{ name: 'Not Contains', value: 'notContains' },
+									{ name: 'Greater Than', value: 'greaterThan' },
+									{ name: 'Greater or Equal', value: 'greaterOrEqual' },
+									{ name: 'Less Than', value: 'lessThan' },
+									{ name: 'Less or Equal', value: 'lessOrEqual' },
+									{ name: 'Starts With', value: 'startsWith' },
+									{ name: 'Ends With', value: 'endsWith' },
+									{ name: 'Is Empty', value: 'isEmpty' },
+									{ name: 'Is Not Empty', value: 'isNotEmpty' },
+								],
+								default: 'equals',
+							},
+							{ 
+								displayName: 'Value', 
+								name: 'value', 
+								type: 'string', 
+								default: '', 
+								displayOptions: { 
+									hide: { 
+										operator: ['isEmpty', 'isNotEmpty'] 
+									} 
+								} 
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Condition Logic',
+				name: 'conditionLogic',
+				type: 'options',
+				displayOptions: { 
+					show: { 
+						resource: ['row'],
+						operation: ['filterRows'] 
+					} 
+				},
+				options: [
+					{ name: 'AND', value: 'and', description: 'All conditions must match' },
+					{ name: 'OR', value: 'or', description: 'Any condition must match' },
+				],
+				default: 'and',
 			},
 
 			// Row Data (JSON) for Add/Insert
@@ -318,88 +460,6 @@ export class ExcelAI implements INodeType {
 				required: true,
 				placeholder: '{"Email": "newemail@example.com", "Status": "Active"}',
 				description: 'Data to update as JSON object. Only specified columns will be updated.',
-			},
-
-			// Find Rows Parameters
-			{
-				displayName: 'Search Column',
-				name: 'searchColumn',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getColumns',
-					loadOptionsDependsOn: ['filePath', 'sheetNameOptions'],
-				},
-				displayOptions: {
-					show: {
-						resource: ['row'],
-						operation: ['findRows'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'Column to search in',
-			},
-			{
-				displayName: 'Search Value',
-				name: 'searchValue',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['row'],
-						operation: ['findRows'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'Value to search for',
-			},
-			{
-				displayName: 'Match Type',
-				name: 'matchType',
-				type: 'options',
-				options: [
-					{
-						name: 'Exact',
-						value: 'exact',
-						description: 'Exact match (case-insensitive)',
-					},
-					{
-						name: 'Contains',
-						value: 'contains',
-						description: 'Contains substring (case-insensitive)',
-					},
-					{
-						name: 'Starts With',
-						value: 'startsWith',
-						description: 'Starts with (case-insensitive)',
-					},
-					{
-						name: 'Ends With',
-						value: 'endsWith',
-						description: 'Ends with (case-insensitive)',
-					},
-				],
-				displayOptions: {
-					show: {
-						resource: ['row'],
-						operation: ['findRows'],
-					},
-				},
-				default: 'exact',
-				description: 'How to match the search value',
-			},
-			{
-				displayName: 'Return Row Numbers Only',
-				name: 'returnRowNumbers',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['row'],
-						operation: ['findRows'],
-					},
-				},
-				default: false,
-				description: 'Whether to return only row numbers instead of full row data',
 			},
 
 			// Worksheet Parameters
@@ -664,42 +724,42 @@ export class ExcelAI implements INodeType {
 
 					switch (operation) {
 						case 'readRows':
-						result = await ExcelAI.handleReadRows(this, worksheet, itemIndex);
-						break;
+							result = await ExcelAI.handleReadRows(this, worksheet, itemIndex);
+							break;
 
-					case 'appendRow':
-						result = await ExcelAI.handleAppendRow(this, worksheet, itemIndex, columnMap);
-						if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
-							await workbook.xlsx.writeFile(filePath);
-						}
-						break;
+						case 'filterRows':
+							result = await ExcelAI.handleFilterRows(this, worksheet, itemIndex, inputMode);
+							break;
 
-					case 'insertRow':
-						result = await ExcelAI.handleInsertRow(this, worksheet, itemIndex, columnMap);
-						if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
-							await workbook.xlsx.writeFile(filePath);
-						}
-						break;
+						case 'appendRow':
+							result = await ExcelAI.handleAppendRow(this, worksheet, itemIndex, columnMap);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+								await workbook.xlsx.writeFile(filePath);
+							}
+							break;
 
-					case 'updateRow':
-						result = await ExcelAI.handleUpdateRow(this, worksheet, itemIndex, columnMap);
-						if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
-							await workbook.xlsx.writeFile(filePath);
-						}
-						break;
+						case 'insertRow':
+							result = await ExcelAI.handleInsertRow(this, worksheet, itemIndex, columnMap);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+								await workbook.xlsx.writeFile(filePath);
+							}
+							break;
 
-					case 'deleteRow':
-						result = await ExcelAI.handleDeleteRow(this, worksheet, itemIndex);
-						if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
-							await workbook.xlsx.writeFile(filePath);
-						}
-						break;
+						case 'updateRow':
+							result = await ExcelAI.handleUpdateRow(this, worksheet, itemIndex, columnMap);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+								await workbook.xlsx.writeFile(filePath);
+							}
+							break;
 
-					case 'findRows':
-						result = await ExcelAI.handleFindRows(this, worksheet, itemIndex, columnMap);
-						break;
+						case 'deleteRow':
+							result = await ExcelAI.handleDeleteRow(this, worksheet, itemIndex);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+								await workbook.xlsx.writeFile(filePath);
+							}
+							break;
 
-					default:
+						default:
 							throw new NodeOperationError(
 								this.getNode(),
 								`Unknown operation: ${operation}`
@@ -727,24 +787,24 @@ export class ExcelAI implements INodeType {
 							}
 							break;
 
+						case 'renameWorksheet':
+							result = await ExcelAI.handleRenameWorksheet(this, workbook, itemIndex);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+								await workbook.xlsx.writeFile(filePath);
+							}
+							break;
 
-					case 'renameWorksheet':
-						result = await ExcelAI.handleRenameWorksheet(this, workbook, itemIndex);
-						if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
-							await workbook.xlsx.writeFile(filePath);
-						}
-						break;
+						case 'copyWorksheet':
+							result = await ExcelAI.handleCopyWorksheet(this, workbook, itemIndex);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+								await workbook.xlsx.writeFile(filePath);
+							}
+							break;
 
-					case 'copyWorksheet':
-						result = await ExcelAI.handleCopyWorksheet(this, workbook, itemIndex);
-						if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
-							await workbook.xlsx.writeFile(filePath);
-						}
-						break;
+						case 'getWorksheetInfo':
+							result = await ExcelAI.handleGetWorksheetInfo(this, workbook, itemIndex);
+							break;
 
-					case 'getWorksheetInfo':
-						result = await ExcelAI.handleGetWorksheetInfo(this, workbook, itemIndex);
-						break;
 						default:
 							throw new NodeOperationError(
 								this.getNode(),
@@ -873,6 +933,96 @@ export class ExcelAI implements INodeType {
 		return rows;
 	}
 
+	private static async handleFilterRows(
+		context: IExecuteFunctions,
+		worksheet: ExcelJS.Worksheet,
+		itemIndex: number,
+		inputMode: string
+	): Promise<any[]> {
+		const conditionLogic = context.getNodeParameter('conditionLogic', itemIndex, 'and') as string;
+		
+		// Get filter conditions based on input mode
+		const filterConditions = inputMode === 'filePath'
+			? context.getNodeParameter('filterConditions', itemIndex) as any
+			: context.getNodeParameter('filterConditionsBinary', itemIndex) as any;
+
+		// Get all rows first
+		const headerRow = worksheet.getRow(1);
+		const headers: string[] = [];
+
+		headerRow.eachCell((cell, colNumber) => {
+			const header = cell.value?.toString() || '';
+			headers[colNumber - 1] = header;
+		});
+
+		const allRows: any[] = [];
+		worksheet.eachRow((row, rowNumber) => {
+			if (rowNumber === 1) return; // Skip header
+
+			const rowData: any = { _rowNumber: rowNumber };
+			row.eachCell((cell, colNumber) => {
+				const header = headers[colNumber - 1];
+				if (header) {
+					rowData[header] = cell.value;
+				}
+			});
+
+			// Skip empty rows
+			const hasData = Object.keys(rowData).some(key => key !== '_rowNumber' && rowData[key]);
+			if (hasData) {
+				allRows.push(rowData);
+			}
+		});
+
+		// If no conditions, return all rows
+		if (!filterConditions.conditions?.length) {
+			return allRows;
+		}
+
+		// Filter rows based on conditions
+		const filteredRows = allRows.filter((rowData) => {
+			const results = filterConditions.conditions.map((c: any) => {
+				const val = rowData[c.field];
+				const compareVal = c.value;
+				
+				switch (c.operator) {
+					case 'equals': 
+						return String(val) === String(compareVal);
+					case 'notEquals': 
+						return String(val) !== String(compareVal);
+					case 'contains': 
+						return String(val).includes(String(compareVal));
+					case 'notContains': 
+						return !String(val).includes(String(compareVal));
+					case 'greaterThan': 
+						return Number(val) > Number(compareVal);
+					case 'greaterOrEqual': 
+						return Number(val) >= Number(compareVal);
+					case 'lessThan': 
+						return Number(val) < Number(compareVal);
+					case 'lessOrEqual': 
+						return Number(val) <= Number(compareVal);
+					case 'startsWith': 
+						return String(val).startsWith(String(compareVal));
+					case 'endsWith': 
+						return String(val).endsWith(String(compareVal));
+					case 'isEmpty': 
+						return !val || val === '' || val === null || val === undefined;
+					case 'isNotEmpty': 
+						return val && val !== '' && val !== null && val !== undefined;
+					default: 
+						return false;
+				}
+			});
+
+			return conditionLogic === 'and' 
+				? results.every((r: boolean) => r) 
+				: results.some((r: boolean) => r);
+		});
+
+		return filteredRows;
+	}
+
 	private static async handleAppendRow(
 		context: IExecuteFunctions,
 		worksheet: ExcelJS.Worksheet,
@@ -983,103 +1133,6 @@ export class ExcelAI implements INodeType {
 			rowNumber,
 			message: `Row ${rowNumber} deleted successfully`,
 		};
-	}
-
-	private static async handleFindRows(
-		context: IExecuteFunctions,
-		worksheet: ExcelJS.Worksheet,
-		itemIndex: number,
-		columnMap: Map<string, number>
-	): Promise<any[]> {
-		const searchColumn = context.getNodeParameter('searchColumn', itemIndex) as string;
-		const searchValue = context.getNodeParameter('searchValue', itemIndex) as string;
-		const matchType = context.getNodeParameter('matchType', itemIndex, 'exact') as string;
-		const returnRowNumbers = context.getNodeParameter('returnRowNumbers', itemIndex, false) as boolean;
-
-		const colNumber = columnMap.get(searchColumn);
-		if (!colNumber) {
-			throw new NodeOperationError(
-				context.getNode(),
-				`Column "${searchColumn}" not found`
-			);
-		}
-
-		const matchingRows: any[] = [];
-		const headerRow = worksheet.getRow(1);
-		const headers: string[] = [];
-
-		headerRow.eachCell((cell, colNum) => {
-			headers[colNum - 1] = cell.value?.toString() || '';
-		});
-
-		worksheet.eachRow((row, rowNumber) => {
-			if (rowNumber === 1) return;
-
-			const cellValue = row.getCell(colNumber).value?.toString() || '';
-			let isMatch = false;
-
-			const searchLower = searchValue.toLowerCase();
-			const cellLower = cellValue.toLowerCase();
-
-			switch (matchType) {
-				case 'exact':
-					isMatch = cellLower === searchLower;
-					break;
-				case 'contains':
-					isMatch = cellLower.includes(searchLower);
-					break;
-				case 'startsWith':
-					isMatch = cellLower.startsWith(searchLower);
-					break;
-				case 'endsWith':
-					isMatch = cellLower.endsWith(searchLower);
-					break;
-			}
-
-			if (isMatch) {
-				if (returnRowNumbers) {
-					matchingRows.push(rowNumber);
-				} else {
-					const rowData: any = { _rowNumber: rowNumber };
-					row.eachCell((cell, colNum) => {
-						const header = headers[colNum - 1];
-						if (header) {
-							rowData[header] = cell.value;
-						}
-					});
-					matchingRows.push(rowData);
-				}
-			}
-		});
-
-		if (returnRowNumbers) {
-			return [
-				{
-					operation: 'findRows',
-					searchColumn,
-					searchValue,
-					matchType,
-					rowNumbers: matchingRows,
-					count: matchingRows.length,
-				},
-			];
-		}
-
-		// Return message if no rows found
-		if (matchingRows.length === 0) {
-			return [
-				{
-					operation: 'findRows',
-					searchColumn,
-					searchValue,
-					matchType,
-					count: 0,
-					message: 'No matching rows found',
-				},
-			];
-		}
-
-		return matchingRows;
 	}
 
 	// ========== Worksheet Operation Handlers ==========

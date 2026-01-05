@@ -144,7 +144,7 @@ describe('ExcelAI Node - Unit Tests', () => {
 			expect(operationValues).toContain('insertRow');
 			expect(operationValues).toContain('updateRow');
 			expect(operationValues).toContain('deleteRow');
-			expect(operationValues).toContain('findRows');
+			expect(operationValues).toContain('filterRows');
 		});
 	});
 
@@ -408,14 +408,18 @@ describe('ExcelAI Node - Unit Tests', () => {
 			expect(result[0][1].json).toHaveProperty('Product', 'ItemB');
 			expect(result[0][1].json).toHaveProperty('Price', 200);
 		});
+	});
 
-		test('Find Rows - should return matching rows', async () => {
+	// ===== 3.5. Filter Rows Tests (File Path Mode) =====
+	describe('Filter Rows - File Path Mode', () => {
+		test('Filter Rows - should filter by single equals condition', async () => {
 			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
 			const sheet = testWorkbook.addWorksheet('TestSheet');
-			sheet.addRow(['Name', 'Role']);
-			sheet.addRow(['Alice', 'Engineer']);
-			sheet.addRow(['Bob', 'Designer']);
-			sheet.addRow(['Alice', 'Lead']);
+			sheet.addRow(['Name', 'Department', 'Age', 'Status']);
+			sheet.addRow(['Alice', 'Engineering', 30, 'Active']);
+			sheet.addRow(['Bob', 'Sales', 25, 'Active']);
+			sheet.addRow(['Charlie', 'Engineering', 35, 'Inactive']);
+			sheet.addRow(['David', 'Engineering', 28, 'Active']);
 
 			const buffer = await testWorkbook.xlsx.writeBuffer();
 			(global as any).__mockExcelBuffer__ = buffer;
@@ -423,33 +427,77 @@ describe('ExcelAI Node - Unit Tests', () => {
 			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
 				const params: Record<string, any> = {
 					resource: 'row',
-					operation: 'findRows',
+					operation: 'filterRows',
 					inputMode: 'filePath',
-					filePath: '/test/data.xlsx',
+					filePath: '/test/employees.xlsx',
 					sheetNameOptions: 'TestSheet',
-					searchColumn: 'Name',
-					searchValue: 'Alice',
-					matchType: 'exact',
-					returnRowNumbers: false,
+					filterConditions: {
+						conditions: [
+							{ field: 'Department', operator: 'equals', value: 'Engineering' }
+						]
+					},
+					conditionLogic: 'and',
 				};
 				return params[paramName] ?? fallback;
 			});
 
 			const result = await excelAI.execute.call(mockContext);
 
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(3);
+			expect(result[0][0].json).toHaveProperty('Name', 'Alice');
+			expect(result[0][1].json).toHaveProperty('Name', 'Charlie');
+			expect(result[0][2].json).toHaveProperty('Name', 'David');
+		});
+
+		test('Filter Rows - should filter by multiple AND conditions', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Department', 'Age', 'Status']);
+			sheet.addRow(['Alice', 'Engineering', 30, 'Active']);
+			sheet.addRow(['Bob', 'Sales', 25, 'Active']);
+			sheet.addRow(['Charlie', 'Engineering', 35, 'Inactive']);
+			sheet.addRow(['David', 'Engineering', 28, 'Active']);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/employees.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Department', operator: 'equals', value: 'Engineering' },
+							{ field: 'Status', operator: 'equals', value: 'Active' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
 			expect(Array.isArray(result[0])).toBe(true);
 			expect(result[0].length).toBe(2);
 			expect(result[0][0].json).toHaveProperty('Name', 'Alice');
-			expect(result[0][1].json).toHaveProperty('Name', 'Alice');
+			expect(result[0][1].json).toHaveProperty('Name', 'David');
 		});
 
-		test('Find Rows - should return row numbers only', async () => {
+		test('Filter Rows - should filter by multiple OR conditions', async () => {
 			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
 			const sheet = testWorkbook.addWorksheet('TestSheet');
-			sheet.addRow(['Id', 'Status']);
-			sheet.addRow([1, 'Open']);
-			sheet.addRow([2, 'Closed']);
-			sheet.addRow([3, 'Open']);
+			sheet.addRow(['Name', 'Department', 'Salary']);
+			sheet.addRow(['Alice', 'Engineering', 80000]);
+			sheet.addRow(['Bob', 'Sales', 60000]);
+			sheet.addRow(['Charlie', 'Marketing', 70000]);
+			sheet.addRow(['David', 'Engineering', 75000]);
 
 			const buffer = await testWorkbook.xlsx.writeBuffer();
 			(global as any).__mockExcelBuffer__ = buffer;
@@ -457,25 +505,530 @@ describe('ExcelAI Node - Unit Tests', () => {
 			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
 				const params: Record<string, any> = {
 					resource: 'row',
-					operation: 'findRows',
+					operation: 'filterRows',
 					inputMode: 'filePath',
-					filePath: '/test/data.xlsx',
+					filePath: '/test/employees.xlsx',
 					sheetNameOptions: 'TestSheet',
-					searchColumn: 'Status',
-					searchValue: 'Open',
-					matchType: 'exact',
-					returnRowNumbers: true,
+					filterConditions: {
+						conditions: [
+							{ field: 'Department', operator: 'equals', value: 'Sales' },
+							{ field: 'Department', operator: 'equals', value: 'Marketing' }
+						]
+					},
+					conditionLogic: 'or',
 				};
 				return params[paramName] ?? fallback;
 			});
 
 			const result = await excelAI.execute.call(mockContext);
 
-			expect(result[0][0].json).toHaveProperty('rowNumbers');
-			expect(result[0][0].json.rowNumbers).toEqual([2, 4]);
-			expect(result[0][0].json).toHaveProperty('count', 2);
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('Name', 'Bob');
+			expect(result[0][1].json).toHaveProperty('Name', 'Charlie');
 		});
 
+		test('Filter Rows - should filter using greater than operator', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Product', 'Price', 'Stock']);
+			sheet.addRow(['Laptop', 1000, 15]);
+			sheet.addRow(['Mouse', 25, 100]);
+			sheet.addRow(['Keyboard', 75, 50]);
+			sheet.addRow(['Monitor', 300, 30]);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/products.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Price', operator: 'greaterThan', value: '100' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('Product', 'Laptop');
+			expect(result[0][1].json).toHaveProperty('Product', 'Monitor');
+		});
+
+		test('Filter Rows - should filter using less or equal operator', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Employee', 'Age', 'Experience']);
+			sheet.addRow(['Alice', 28, 5]);
+			sheet.addRow(['Bob', 35, 10]);
+			sheet.addRow(['Charlie', 25, 3]);
+			sheet.addRow(['David', 30, 7]);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/employees.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Age', operator: 'lessOrEqual', value: '30' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(3);
+			expect(result[0][0].json).toHaveProperty('Employee', 'Alice');
+			expect(result[0][1].json).toHaveProperty('Employee', 'Charlie');
+			expect(result[0][2].json).toHaveProperty('Employee', 'David');
+		});
+
+		test('Filter Rows - should filter using contains operator', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Email', 'Role']);
+			sheet.addRow(['Alice Johnson', 'alice@company.com', 'Engineer']);
+			sheet.addRow(['Bob Smith', 'bob@company.com', 'Designer']);
+			sheet.addRow(['Charlie Davis', 'charlie@external.com', 'Consultant']);
+			sheet.addRow(['David Brown', 'david@company.com', 'Manager']);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/employees.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Email', operator: 'contains', value: '@company.com' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(3);
+			expect(result[0][0].json).toHaveProperty('Name', 'Alice Johnson');
+			expect(result[0][1].json).toHaveProperty('Name', 'Bob Smith');
+			expect(result[0][2].json).toHaveProperty('Name', 'David Brown');
+		});
+
+		test('Filter Rows - should filter using startsWith operator', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Code', 'Description', 'Status']);
+			sheet.addRow(['ENG-001', 'Engine Part', 'Active']);
+			sheet.addRow(['ENG-002', 'Engine Assembly', 'Active']);
+			sheet.addRow(['BRK-001', 'Brake System', 'Inactive']);
+			sheet.addRow(['ENG-003', 'Engine Cover', 'Active']);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/parts.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Code', operator: 'startsWith', value: 'ENG' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(3);
+			expect(result[0][0].json).toHaveProperty('Code', 'ENG-001');
+			expect(result[0][1].json).toHaveProperty('Code', 'ENG-002');
+			expect(result[0][2].json).toHaveProperty('Code', 'ENG-003');
+		});
+
+		test('Filter Rows - should filter using endsWith operator', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Filename', 'Size', 'Type']);
+			sheet.addRow(['document.pdf', 1024, 'PDF']);
+			sheet.addRow(['image.png', 2048, 'Image']);
+			sheet.addRow(['report.pdf', 4096, 'PDF']);
+			sheet.addRow(['data.xlsx', 8192, 'Spreadsheet']);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/files.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Filename', operator: 'endsWith', value: '.pdf' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('Filename', 'document.pdf');
+			expect(result[0][1].json).toHaveProperty('Filename', 'report.pdf');
+		});
+
+		test('Filter Rows - should filter using isEmpty operator', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Phone', 'Notes']);
+			sheet.addRow(['Alice', '123-456-7890', 'Has account']);
+			sheet.addRow(['Bob', '', 'Needs follow-up']);
+			sheet.addRow(['Charlie', null, '']);
+			sheet.addRow(['David', '555-1234', 'VIP customer']);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/contacts.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Phone', operator: 'isEmpty', value: '' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('Name', 'Bob');
+			expect(result[0][1].json).toHaveProperty('Name', 'Charlie');
+		});
+
+		test('Filter Rows - should filter using isNotEmpty operator', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Task', 'Assignee', 'DueDate']);
+			sheet.addRow(['Task 1', 'Alice', '2024-01-01']);
+			sheet.addRow(['Task 2', '', '2024-01-02']);
+			sheet.addRow(['Task 3', 'Bob', '']);
+			sheet.addRow(['Task 4', 'Charlie', '2024-01-03']);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/tasks.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Assignee', operator: 'isNotEmpty', value: '' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(3);
+			expect(result[0][0].json).toHaveProperty('Task', 'Task 1');
+			expect(result[0][1].json).toHaveProperty('Task', 'Task 3');
+			expect(result[0][2].json).toHaveProperty('Task', 'Task 4');
+		});
+
+		test('Filter Rows - should filter using notEquals operator', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Item', 'Status', 'Priority']);
+			sheet.addRow(['Item 1', 'Completed', 'High']);
+			sheet.addRow(['Item 2', 'Pending', 'Medium']);
+			sheet.addRow(['Item 3', 'Completed', 'Low']);
+			sheet.addRow(['Item 4', 'In Progress', 'High']);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/items.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Status', operator: 'notEquals', value: 'Completed' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('Item', 'Item 2');
+			expect(result[0][1].json).toHaveProperty('Item', 'Item 4');
+		});
+
+		test('Filter Rows - should filter using notContains operator', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Title', 'Tags', 'Category']);
+			sheet.addRow(['Article 1', 'tech, ai', 'Technology']);
+			sheet.addRow(['Article 2', 'business, finance', 'Business']);
+			sheet.addRow(['Article 3', 'tech, web', 'Technology']);
+			sheet.addRow(['Article 4', 'sports, news', 'Sports']);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/articles.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Tags', operator: 'notContains', value: 'tech' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('Title', 'Article 2');
+			expect(result[0][1].json).toHaveProperty('Title', 'Article 4');
+		});
+
+		test('Filter Rows - should return all rows when no conditions', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Age']);
+			sheet.addRow(['Alice', 30]);
+			sheet.addRow(['Bob', 25]);
+			sheet.addRow(['Charlie', 35]);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/data.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: { conditions: [] },
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(3);
+		});
+
+		test('Filter Rows - should include row numbers in results', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Product', 'Stock']);
+			sheet.addRow(['Item A', 10]);
+			sheet.addRow(['Item B', 0]);
+			sheet.addRow(['Item C', 25]);
+			sheet.addRow(['Item D', 5]);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/inventory.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [
+							{ field: 'Stock', operator: 'greaterThan', value: '0' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(3);
+			expect(result[0][0].json).toHaveProperty('_rowNumber');
+			expect(result[0][0].json._rowNumber).toBe(2);
+			expect(result[0][1].json._rowNumber).toBe(4);
+			expect(result[0][2].json._rowNumber).toBe(5);
+		});
+	});
+
+	// ===== 3.6. Filter Rows Tests (Binary Data Mode) =====
+	describe('Filter Rows - Binary Data Mode', () => {
+		test('Filter Rows - should filter with binary data input', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Department', 'Salary']);
+			sheet.addRow(['Alice', 'IT', 75000]);
+			sheet.addRow(['Bob', 'HR', 60000]);
+			sheet.addRow(['Charlie', 'IT', 80000]);
+			sheet.addRow(['David', 'Sales', 65000]);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(mockContext.helpers.getBinaryDataBuffer as jest.Mock).mockResolvedValue(buffer);
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'binaryData',
+					binaryPropertyName: 'data',
+					sheetName: 'TestSheet',
+					filterConditionsBinary: {
+						conditions: [
+							{ field: 'Department', operator: 'equals', value: 'IT' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('Name', 'Alice');
+			expect(result[0][1].json).toHaveProperty('Name', 'Charlie');
+		});
+
+		test('Filter Rows - should filter with complex conditions in binary mode', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Product', 'Category', 'Price', 'InStock']);
+			sheet.addRow(['Laptop', 'Electronics', 1200, 'Yes']);
+			sheet.addRow(['Mouse', 'Electronics', 25, 'Yes']);
+			sheet.addRow(['Chair', 'Furniture', 300, 'No']);
+			sheet.addRow(['Monitor', 'Electronics', 350, 'Yes']);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(mockContext.helpers.getBinaryDataBuffer as jest.Mock).mockResolvedValue(buffer);
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'binaryData',
+					binaryPropertyName: 'data',
+					sheetName: 'TestSheet',
+					filterConditionsBinary: {
+						conditions: [
+							{ field: 'Category', operator: 'equals', value: 'Electronics' },
+							{ field: 'Price', operator: 'lessThan', value: '1000' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('Product', 'Mouse');
+			expect(result[0][1].json).toHaveProperty('Product', 'Monitor');
+		});
+	});
+
+	// ===== 3.7. Error Handling for Row Operations =====
+	describe('Row Operations - Error Handling', () => {
 		test('Append Row - invalid JSON should throw error', async () => {
 			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
 			const sheet = testWorkbook.addWorksheet('TestSheet');
@@ -496,12 +1049,12 @@ describe('ExcelAI Node - Unit Tests', () => {
 				return params[paramName];
 			});
 
-		await expect(excelAI.execute.call(mockContext)).rejects.toThrow();
+			await expect(excelAI.execute.call(mockContext)).rejects.toThrow();
+		});
 	});
-});
 
-// ===== 4. Worksheet Operations Tests =====
-describe('Worksheet Operations', () => {
+	// ===== 4. Worksheet Operations Tests =====
+	describe('Worksheet Operations', () => {
 	test('Create Worksheet - should create new worksheet', async () => {
 		const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
 		testWorkbook.addWorksheet('ExistingSheet');
@@ -689,10 +1242,10 @@ describe('Worksheet Operations', () => {
 	expect(columns[0]).toHaveProperty('header', 'UserID');
 	expect(columns[0]).toHaveProperty('width', 15);
 	});
-});
+	});
 
-// ===== 5. Error Handling Tests =====
-describe('Error Handling', () => {
+	// ===== 5. Error Handling Tests =====
+	describe('Error Handling', () => {
 	test('should handle worksheet not found error', async () => {
 		const testWorkbook = new ExcelJS.Workbook();
 		testWorkbook.addWorksheet('ExistingSheet');
@@ -759,8 +1312,8 @@ describe('Error Handling', () => {
 	});
 	});
 
-// ===== 6. Binary Data Mode Tests =====
-describe('Binary Data Mode', () => {
+	// ===== 6. Binary Data Mode Tests =====
+	describe('Binary Data Mode', () => {
 	test('should read Excel file from Binary Data', async () => {
 		const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
 		const sheet = testWorkbook.addWorksheet('TestSheet');
