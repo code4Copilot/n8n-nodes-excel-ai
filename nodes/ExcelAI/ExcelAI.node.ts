@@ -672,10 +672,18 @@ export class ExcelAI implements INodeType {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
 
-		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+		// For read-only operations (readRows, filterRows), execute once using the first item's parameters
+		const resource = this.getNodeParameter('resource', 0) as string;
+		const operation = resource === 'row' ? this.getNodeParameter('operation', 0) as string : '';
+		const isReadOnlyOperation = operation === 'readRows' || operation === 'filterRows';
+
+		const itemsToProcess = isReadOnlyOperation ? [items[0]] : items;
+
+		for (let itemIndex = 0; itemIndex < itemsToProcess.length; itemIndex++) {
 			try {
-				const resource = this.getNodeParameter('resource', itemIndex) as string;
-				const inputMode = this.getNodeParameter('inputMode', itemIndex) as string;
+				const currentIndex = isReadOnlyOperation ? 0 : itemIndex;
+				const resource = this.getNodeParameter('resource', currentIndex) as string;
+				const inputMode = this.getNodeParameter('inputMode', currentIndex) as string;
 
 				// Load workbook
 				let workbook: ExcelJS.Workbook;
@@ -683,22 +691,22 @@ export class ExcelAI implements INodeType {
 				let result: any;
 
 				if (inputMode === 'filePath') {
-					filePath = this.getNodeParameter('filePath', itemIndex) as string;
+					filePath = this.getNodeParameter('filePath', currentIndex) as string;
 					workbook = new ExcelJS.Workbook();
 					await workbook.xlsx.readFile(filePath);
 				} else {
-					const binaryPropertyName = this.getNodeParameter('binaryPropertyName', itemIndex) as string;
-					await this.helpers.assertBinaryData(itemIndex, binaryPropertyName);
-					const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+					const binaryPropertyName = this.getNodeParameter('binaryPropertyName', currentIndex) as string;
+					await this.helpers.assertBinaryData(currentIndex, binaryPropertyName);
+					const buffer = await this.helpers.getBinaryDataBuffer(currentIndex, binaryPropertyName);
 					workbook = new ExcelJS.Workbook();
 					await workbook.xlsx.load(buffer as any);
 				}
 
 				if (resource === 'row') {
-					const operation = this.getNodeParameter('operation', itemIndex) as string;
+					const operation = this.getNodeParameter('operation', currentIndex) as string;
 					let sheetName = inputMode === 'filePath'
-						? this.getNodeParameter('sheetNameOptions', itemIndex, '') as string
-						: this.getNodeParameter('sheetName', itemIndex, '') as string;
+						? this.getNodeParameter('sheetNameOptions', currentIndex, '') as string
+						: this.getNodeParameter('sheetName', currentIndex, '') as string;
 
 					// If no sheet name specified, use the first worksheet
 					if (!sheetName) {
@@ -724,37 +732,37 @@ export class ExcelAI implements INodeType {
 
 					switch (operation) {
 						case 'readRows':
-							result = await ExcelAI.handleReadRows(this, worksheet, itemIndex);
+							result = await ExcelAI.handleReadRows(this, worksheet, currentIndex);
 							break;
 
 						case 'filterRows':
-							result = await ExcelAI.handleFilterRows(this, worksheet, itemIndex, inputMode);
+							result = await ExcelAI.handleFilterRows(this, worksheet, currentIndex, inputMode);
 							break;
 
 						case 'appendRow':
-							result = await ExcelAI.handleAppendRow(this, worksheet, itemIndex, columnMap);
-							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+							result = await ExcelAI.handleAppendRow(this, worksheet, currentIndex, columnMap);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
 								await workbook.xlsx.writeFile(filePath);
 							}
 							break;
 
 						case 'insertRow':
-							result = await ExcelAI.handleInsertRow(this, worksheet, itemIndex, columnMap);
-							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+							result = await ExcelAI.handleInsertRow(this, worksheet, currentIndex, columnMap);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
 								await workbook.xlsx.writeFile(filePath);
 							}
 							break;
 
 						case 'updateRow':
-							result = await ExcelAI.handleUpdateRow(this, worksheet, itemIndex, columnMap);
-							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+							result = await ExcelAI.handleUpdateRow(this, worksheet, currentIndex, columnMap);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
 								await workbook.xlsx.writeFile(filePath);
 							}
 							break;
 
 						case 'deleteRow':
-							result = await ExcelAI.handleDeleteRow(this, worksheet, itemIndex);
-							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+							result = await ExcelAI.handleDeleteRow(this, worksheet, currentIndex);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
 								await workbook.xlsx.writeFile(filePath);
 							}
 							break;
@@ -766,43 +774,43 @@ export class ExcelAI implements INodeType {
 							);
 					}
 				} else if (resource === 'worksheet') {
-					const worksheetOperation = this.getNodeParameter('worksheetOperation', itemIndex) as string;
+					const worksheetOperation = this.getNodeParameter('worksheetOperation', currentIndex) as string;
 
 					switch (worksheetOperation) {
 						case 'listWorksheets':
-							result = await ExcelAI.handleListWorksheets(this, workbook, itemIndex);
+							result = await ExcelAI.handleListWorksheets(this, workbook, currentIndex);
 							break;
 
 						case 'createWorksheet':
-							result = await ExcelAI.handleCreateWorksheet(this, workbook, itemIndex);
-							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+							result = await ExcelAI.handleCreateWorksheet(this, workbook, currentIndex);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
 								await workbook.xlsx.writeFile(filePath);
 							}
 							break;
 
 						case 'deleteWorksheet':
-							result = await ExcelAI.handleDeleteWorksheet(this, workbook, itemIndex);
-							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+							result = await ExcelAI.handleDeleteWorksheet(this, workbook, currentIndex);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
 								await workbook.xlsx.writeFile(filePath);
 							}
 							break;
 
 						case 'renameWorksheet':
-							result = await ExcelAI.handleRenameWorksheet(this, workbook, itemIndex);
-							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+							result = await ExcelAI.handleRenameWorksheet(this, workbook, currentIndex);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
 								await workbook.xlsx.writeFile(filePath);
 							}
 							break;
 
 						case 'copyWorksheet':
-							result = await ExcelAI.handleCopyWorksheet(this, workbook, itemIndex);
-							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', itemIndex, true)) {
+							result = await ExcelAI.handleCopyWorksheet(this, workbook, currentIndex);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
 								await workbook.xlsx.writeFile(filePath);
 							}
 							break;
 
 						case 'getWorksheetInfo':
-							result = await ExcelAI.handleGetWorksheetInfo(this, workbook, itemIndex);
+							result = await ExcelAI.handleGetWorksheetInfo(this, workbook, currentIndex);
 							break;
 
 						default:
@@ -834,11 +842,12 @@ export class ExcelAI implements INodeType {
 			} catch (error) {
 				if (this.continueOnFail()) {
 					const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+					const currentIndex = isReadOnlyOperation ? 0 : itemIndex;
 					returnData.push({
 						json: {
 							error: errorMessage,
-							resource: this.getNodeParameter('resource', itemIndex, ''),
-							operation: this.getNodeParameter('operation', itemIndex, ''),
+							resource: this.getNodeParameter('resource', currentIndex, ''),
+							operation: this.getNodeParameter('operation', currentIndex, ''),
 						},
 					});
 					continue;

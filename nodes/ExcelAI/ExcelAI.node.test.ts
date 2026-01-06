@@ -945,6 +945,59 @@ describe('ExcelAI Node - Unit Tests', () => {
 			expect(result[0][1].json._rowNumber).toBe(4);
 			expect(result[0][2].json._rowNumber).toBe(5);
 		});
+
+		test('Filter Rows - should not duplicate results with multiple input items', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('Employees');
+			sheet.addRow(['Name', 'Department', 'Age', 'Salary']);
+			sheet.addRow(['Alice', 'Engineering', 28, 75000]);
+			sheet.addRow(['Bob', 'Sales', 35, 65000]);
+			sheet.addRow(['Carol', 'Engineering', 42, 80000]);
+			sheet.addRow(['David', 'Engineering', 31, 72000]);
+			sheet.addRow(['Emma', 'Sales', 26, 58000]);
+
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			// Simulate 5 input items (like in the screenshot)
+			mockContext.getInputData.mockReturnValue([
+				{ json: { id: 1 } },
+				{ json: { id: 2 } },
+				{ json: { id: 3 } },
+				{ json: { id: 4 } },
+				{ json: { id: 5 } }
+			]);
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/data/test_employees.xlsx',
+					sheetNameOptions: 'Employees',
+					filterConditions: {
+						conditions: [
+							{ field: 'Department', operator: 'equals', value: 'Engineering' }
+						]
+					},
+					conditionLogic: 'and',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			// Should only return 3 filtered results (not 15 = 3 * 5)
+			expect(result).toBeDefined();
+			expect(Array.isArray(result[0])).toBe(true);
+			expect(result[0].length).toBe(3);
+			expect(result[0][0].json).toHaveProperty('Name', 'Alice');
+			expect(result[0][0].json).toHaveProperty('Department', 'Engineering');
+			expect(result[0][1].json).toHaveProperty('Name', 'Carol');
+			expect(result[0][1].json).toHaveProperty('Department', 'Engineering');
+			expect(result[0][2].json).toHaveProperty('Name', 'David');
+			expect(result[0][2].json).toHaveProperty('Department', 'Engineering');
+		});
 	});
 
 	// ===== 3.6. Filter Rows Tests (Binary Data Mode) =====
