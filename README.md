@@ -663,7 +663,7 @@ npm run lintfix
 
 ## 📝 Changelog
 
-### v1.0.3 (2026-01-05) - Current
+### v1.0.5 (2026-01-05) - Current
 - 🔄 **BREAKING CHANGE**: Replaced `Find Rows` operation with more powerful `Filter Rows`
 - ✨ **Filter Rows Features**:
   - Support for 12 advanced operators (equals, notEquals, contains, notContains, greaterThan, greaterOrEqual, lessThan, lessOrEqual, startsWith, endsWith, isEmpty, isNotEmpty)
@@ -675,7 +675,7 @@ npm run lintfix
 - 🧪 Added 14 new test cases for Filter Rows functionality
 - 📚 Enhanced AI Agent examples with Filter Rows usage
 
-### v1.0.2
+### v1.0.2 ~ v1.0.4
 - 🐛 Bug fixes and performance improvements
 - 📝 Documentation updates
 
