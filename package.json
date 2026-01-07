@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-excel-ai",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Excel CRUD operations for n8n with AI Agent support - Perform read, write, update, delete operations on Excel files",
   "keywords": [
     "n8n-community-node-package",
