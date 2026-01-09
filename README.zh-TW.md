@@ -247,6 +247,37 @@ npm link n8n-nodes-excel-ai
   - `rowNumber`：要更新的列
   - `updatedData`：包含要更新欄位的 JSON 物件
 - **返回**：成功狀態和已更新的欄位
+- **欄位驗證**：
+  - ✅ 自動跳過不存在的欄位，不會中斷執行
+  - ✅ 返回 `updatedFields` 陣列列出成功更新的欄位
+  - ✅ 返回 `skippedFields` 陣列列出被跳過的欄位（如果有）
+  - ✅ 包含 `warning` 訊息說明哪些欄位被跳過
+
+**更新列範例（含欄位驗證）：**
+```javascript
+{
+  "operation": "updateRow",
+  "rowNumber": 5,
+  "updatedData": {
+    "Status": "Completed",
+    "InvalidField": "test",  // 此欄位不存在
+    "Notes": "Updated"
+  }
+}
+```
+
+**輸出：**
+```javascript
+{
+  "success": true,
+  "operation": "updateRow",
+  "rowNumber": 5,
+  "updatedFields": ["Status", "Notes"],
+  "skippedFields": ["InvalidField"],
+  "warning": "The following fields were not found in the worksheet and were skipped: InvalidField",
+  "message": "Row 5 updated successfully"
+}
+```
 
 #### 刪除列
 - **用途**：移除特定列
@@ -263,6 +294,30 @@ npm link n8n-nodes-excel-ai
     - `value`：要比較的值（isEmpty/isNotEmpty 不需要）
   - `conditionLogic`：and | or - 如何組合多個條件
 - **返回**：符合的列陣列，包含 _rowNumber 欄位
+- **欄位驗證**：
+  - ❌ 過濾條件使用不存在的欄位會立即拋出錯誤
+  - ✅ 錯誤訊息會列出無效的欄位和所有可用欄位
+  - ✅ 防止產生不正確的過濾結果
+  - ✅ 同時支援 File Path 和 Binary Data 模式
+
+**錯誤範例：**
+```javascript
+// 如果 "Category" 欄位不存在於工作表中
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Category", "operator": "equals", "value": "Electronics" }
+    ]
+  }
+}
+```
+
+**錯誤訊息：**
+```
+Filter condition error: The following field(s) do not exist in the worksheet: Category. 
+Available fields are: Product, Price, Stock, Status
+```
 
 **過濾列範例：**
 

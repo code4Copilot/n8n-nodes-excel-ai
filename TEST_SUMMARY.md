@@ -1,15 +1,22 @@
-# Filter Rows 功能測試摘要
+# 測試摘要
 
 ## 更新日期
-2026年1月5日
+2026年1月9日
 
 ## 測試概述
-因程式功能變更，已將 **Find Rows** 功能升級為功能更強大的 **Filter Rows**，並重新撰寫完整的測試套件。
+完整的測試套件涵蓋所有 CRUD 操作、工作表管理、錯誤處理和欄位驗證功能。
+
+## 最新更新 (1.0.5)
+- 新增 **欄位驗證** 功能測試
+- UpdateRow 操作現在返回 skippedFields 資訊
+- FilterRows 操作加入嚴格的欄位存在性驗證
+- 增強錯誤訊息格式和一致性
 
 ## 測試統計
-- **總測試數量**: 45 個測試
-- **Filter Rows 相關測試**: 14 個新增測試
+- **總測試數量**: 55 個測試
+- **測試通過數量**: 55 個測試
 - **測試通過率**: 100%
+- **新增測試 (v1.0.5)**: 10 個欄位驗證測試
 
 ## Filter Rows 功能特性
 
@@ -39,43 +46,129 @@ Filter Rows 功能支援以下 12 種運算符：
 
 ## 測試涵蓋範圍
 
-### 1. File Path Mode 測試 (12 項)
+### 1. 欄位驗證測試 (10 項) - 新增於 v1.0.5
 
-#### 1.1 單一條件過濾
+#### 1.1 UpdateRow 欄位驗證 (3 項)
+- ✅ 部分欄位不存在時返回 skippedFields
+- ✅ 所有欄位都存在時正常更新
+- ✅ 所有欄位都不存在時返回完整的 skippedFields 列表
+
+#### 1.2 FilterRows 欄位驗證 (5 項)
+- ✅ File Path 模式下過濾欄位不存在時拋出錯誤
+- ✅ 多個過濾欄位不存在時拋出錯誤並列出所有無效欄位
+- ✅ Binary Data 模式下過濾欄位不存在時拋出錯誤
+- ✅ 所有欄位存在時成功過濾
+- ✅ 錯誤訊息包含可用欄位列表
+
+#### 1.3 continueOnFail 模式測試 (1 項)
+- ✅ continueOnFail 啟用時返回錯誤資訊而非拋出異常
+
+#### 1.4 錯誤訊息格式 (1 項)
+- ✅ 統一使用 NodeOperationError 格式
+- ✅ 錯誤訊息包含具體的欄位名稱和可用選項
+
+### 2. Filter Rows 功能測試 (14 項)
+
+#### 2.1 File Path Mode 測試 (12 項)
+
+##### 2.1.1 單一條件過濾
 - ✅ 使用 equals 運算符過濾 (單一條件)
 - ✅ 無條件時返回所有行
 
-#### 1.2 多條件過濾
+##### 2.1.2 多條件過濾
 - ✅ 使用 AND 邏輯的多條件過濾
 - ✅ 使用 OR 邏輯的多條件過濾
 
-#### 1.3 數值比較運算符
+##### 2.1.3 數值比較運算符
 - ✅ greaterThan - 過濾大於指定值的行
 - ✅ lessOrEqual - 過濾小於或等於指定值的行
 
-#### 1.4 字串匹配運算符
+##### 2.1.4 字串匹配運算符
 - ✅ contains - 過濾包含指定文字的行
 - ✅ startsWith - 過濾以指定文字開頭的行
 - ✅ endsWith - 過濾以指定文字結尾的行
 
-#### 1.5 空值檢查運算符
+##### 2.1.5 空值檢查運算符
 - ✅ isEmpty - 過濾空值欄位的行
 - ✅ isNotEmpty - 過濾非空值欄位的行
 
-#### 1.6 否定運算符
+##### 2.1.6 否定運算符
 - ✅ notEquals - 過濾不等於指定值的行
 - ✅ notContains - 過濾不包含指定文字的行
 
-#### 1.7 特殊功能
+##### 2.1.7 特殊功能
 - ✅ 結果中包含行號 (_rowNumber 欄位)
+- ✅ 多個輸入項目不會重複結果
 
-### 2. Binary Data Mode 測試 (2 項)
+#### 2.2 Binary Data Mode 測試 (2 項)
 - ✅ 使用二進位資料輸入進行基本過濾
 - ✅ 使用二進位資料輸入進行複雜條件過濾
 
-### 3. 其他相關測試
-- ✅ Node Properties 中正確列出 filterRows 操作選項
-- ✅ 錯誤處理測試確保穩定性
+### 3. Row Operations 測試 (6 項)
+- ✅ Append Row - 附加新行
+- ✅ Read Rows - 讀取所有行
+- ✅ Update Row - 更新指定行
+- ✅ Delete Row - 刪除指定行
+- ✅ Insert Row - 在指定位置插入行
+- ✅ Read Rows - 從特定工作表讀取
+
+### 4. Worksheet Operations 測試 (6 項)
+- ✅ Create Worksheet - 建立新工作表
+- ✅ Delete Worksheet - 刪除工作表
+- ✅ List Worksheets - 列出所有工作表
+- ✅ Rename Worksheet - 重新命名工作表
+- ✅ Copy Worksheet - 複製工作表
+- ✅ Get Worksheet Info - 取得工作表詳細資訊
+
+### 5. Error Handling 測試 (4 項)
+- ✅ 處理工作表找不到的錯誤
+- ✅ 處理檔案讀取失敗錯誤
+- ✅ Continue on Fail 模式返回錯誤而非拋出
+- ✅ Append Row - 無效 JSON 應拋出錯誤
+
+### 6. Binary Data Mode 測試 (2 項)
+- ✅ 從 Binary Data 讀取 Excel 檔案
+- ✅ 在 Binary Data 模式下附加行
+
+### 7. Load Options Methods 測試 (2 項)
+- ✅ getWorksheets - 返回工作表列表
+- ✅ getColumns - 返回欄位列表
+
+### 8. Node Properties 測試 (8 項)
+- ✅ 正確的節點名稱
+- ✅ 正確的節點類型
+- ✅ 正確的版本
+- ✅ AI Agent 支援
+- ✅ 正確的輸入和輸出
+- ✅ 所有必要屬性已定義
+- ✅ Resource 選項
+- ✅ 所有 Row 操作選項
+
+## Filter Rows 功能特性
+
+### 支援的運算符
+Filter Rows 功能支援以下 12 種運算符：
+
+1. **equals** - 等於
+2. **notEquals** - 不等於
+3. **contains** - 包含
+4. **notContains** - 不包含
+5. **greaterThan** - 大於
+6. **greaterOrEqual** - 大於或等於
+7. **lessThan** - 小於
+8. **lessOrEqual** - 小於或等於
+9. **startsWith** - 開始於
+10. **endsWith** - 結束於
+11. **isEmpty** - 為空
+12. **isNotEmpty** - 不為空
+
+### 支援的邏輯運算
+- **AND** - 所有條件必須同時滿足
+- **OR** - 任一條件滿足即可
+
+### 輸入模式支援
+- **File Path Mode** - 從檔案系統路徑讀取 Excel 檔案
+- **Binary Data Mode** - 從二進位資料讀取 Excel 檔案
 
 ## 測試資料範例
 

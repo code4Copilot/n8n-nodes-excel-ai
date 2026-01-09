@@ -1427,6 +1427,323 @@ describe('ExcelAI Node - Unit Tests', () => {
 		expect(result[0][0].json).toHaveProperty('success', true);
 	});
 	});
+
+	// ===== Error Handling Tests =====
+	describe('Error Handling - Column Validation', () => {
+		describe('UpdateRow with Invalid Columns', () => {
+			test('should skip non-existent columns and return skippedFields', async () => {
+				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+				const sheet = testWorkbook.addWorksheet('TestSheet');
+				sheet.addRow(['Name', 'Age', 'Email']);
+				sheet.addRow(['John', 30, 'john@example.com']);
+				sheet.addRow(['Jane', 25, 'jane@example.com']);
+				
+				const buffer = await testWorkbook.xlsx.writeBuffer();
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'updateRow',
+						inputMode: 'filePath',
+						filePath: '/test/path.xlsx',
+						sheetNameOptions: 'TestSheet',
+						rowNumber: 2,
+						updatedData: JSON.stringify({ 
+							Age: 31, 
+							InvalidColumn1: 'value1',
+							Email: 'newemail@example.com',
+							InvalidColumn2: 'value2'
+						}),
+						autoSave: false,
+					};
+					return params[paramName] ?? defaultValue;
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result).toBeDefined();
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json).toHaveProperty('updatedFields');
+				expect(result[0][0].json.updatedFields).toEqual(['Age', 'Email']);
+				expect(result[0][0].json).toHaveProperty('skippedFields');
+				expect(result[0][0].json.skippedFields).toEqual(['InvalidColumn1', 'InvalidColumn2']);
+				expect(result[0][0].json).toHaveProperty('warning');
+				expect(result[0][0].json.warning).toContain('InvalidColumn1');
+				expect(result[0][0].json.warning).toContain('InvalidColumn2');
+			});
+
+			test('should update successfully when all columns exist', async () => {
+				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+				const sheet = testWorkbook.addWorksheet('TestSheet');
+				sheet.addRow(['Name', 'Age', 'Email']);
+				sheet.addRow(['John', 30, 'john@example.com']);
+				
+				const buffer = await testWorkbook.xlsx.writeBuffer();
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'updateRow',
+						inputMode: 'filePath',
+						filePath: '/test/path.xlsx',
+						sheetNameOptions: 'TestSheet',
+						rowNumber: 2,
+						updatedData: JSON.stringify({ Age: 31, Email: 'updated@example.com' }),
+						autoSave: false,
+					};
+					return params[paramName] ?? defaultValue;
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json.updatedFields).toEqual(['Age', 'Email']);
+				expect(result[0][0].json).not.toHaveProperty('skippedFields');
+				expect(result[0][0].json).not.toHaveProperty('warning');
+			});
+
+			test('should return skippedFields when all columns are invalid', async () => {
+				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+				const sheet = testWorkbook.addWorksheet('TestSheet');
+				sheet.addRow(['Name', 'Age', 'Email']);
+				sheet.addRow(['John', 30, 'john@example.com']);
+				
+				const buffer = await testWorkbook.xlsx.writeBuffer();
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'updateRow',
+						inputMode: 'filePath',
+						filePath: '/test/path.xlsx',
+						sheetNameOptions: 'TestSheet',
+						rowNumber: 2,
+						updatedData: JSON.stringify({ 
+							InvalidColumn1: 'value1',
+							InvalidColumn2: 'value2',
+							InvalidColumn3: 'value3'
+						}),
+						autoSave: false,
+					};
+					return params[paramName] ?? defaultValue;
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json.updatedFields).toEqual([]);
+				expect(result[0][0].json.skippedFields).toEqual(['InvalidColumn1', 'InvalidColumn2', 'InvalidColumn3']);
+				expect(result[0][0].json.warning).toContain('InvalidColumn1');
+			});
+		});
+
+		describe('FilterRows with Invalid Columns', () => {
+			test('should throw error when filter field does not exist in File Path mode', async () => {
+				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+				const sheet = testWorkbook.addWorksheet('TestSheet');
+				sheet.addRow(['Name', 'Age', 'Email']);
+				sheet.addRow(['John', 30, 'john@example.com']);
+				sheet.addRow(['Jane', 25, 'jane@example.com']);
+				
+				const buffer = await testWorkbook.xlsx.writeBuffer();
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'filterRows',
+						inputMode: 'filePath',
+						filePath: '/test/path.xlsx',
+						sheetNameOptions: 'TestSheet',
+						filterConditions: {
+							conditions: [
+								{ field: 'InvalidField', operator: 'equals', value: 'test' }
+							]
+						},
+						conditionLogic: 'and',
+					};
+					return params[paramName] ?? defaultValue;
+				});
+
+				await expect(excelAI.execute.call(mockContext)).rejects.toThrow(
+					'Filter condition error: The following field(s) do not exist in the worksheet: InvalidField'
+				);
+			});
+
+			test('should throw error when multiple filter fields do not exist', async () => {
+				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+				const sheet = testWorkbook.addWorksheet('TestSheet');
+				sheet.addRow(['Name', 'Age', 'Email']);
+				sheet.addRow(['John', 30, 'john@example.com']);
+				
+				const buffer = await testWorkbook.xlsx.writeBuffer();
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'filterRows',
+						inputMode: 'filePath',
+						filePath: '/test/path.xlsx',
+						sheetNameOptions: 'TestSheet',
+						filterConditions: {
+							conditions: [
+								{ field: 'InvalidField1', operator: 'equals', value: 'test1' },
+								{ field: 'Age', operator: 'greaterThan', value: '20' },
+								{ field: 'InvalidField2', operator: 'contains', value: 'test2' }
+							]
+						},
+						conditionLogic: 'and',
+					};
+					return params[paramName] ?? defaultValue;
+				});
+
+				await expect(excelAI.execute.call(mockContext)).rejects.toThrow(
+					'Filter condition error: The following field(s) do not exist in the worksheet: InvalidField1, InvalidField2'
+				);
+			});
+
+			test('should throw error in Binary Data mode with invalid field', async () => {
+				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+				const sheet = testWorkbook.addWorksheet('TestSheet');
+				sheet.addRow(['Name', 'Age', 'Email']);
+				sheet.addRow(['John', 30, 'john@example.com']);
+				
+				const buffer = await testWorkbook.xlsx.writeBuffer();
+				(mockContext.helpers.getBinaryDataBuffer as jest.Mock).mockResolvedValue(buffer);
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'filterRows',
+						inputMode: 'binaryData',
+						binaryPropertyName: 'data',
+						sheetName: 'TestSheet',
+						filterConditionsBinary: {
+							conditions: [
+								{ field: 'NonExistentField', operator: 'equals', value: 'test' }
+							]
+						},
+						conditionLogic: 'and',
+					};
+					return params[paramName] ?? defaultValue;
+				});
+
+				await expect(excelAI.execute.call(mockContext)).rejects.toThrow(
+					'Filter condition error: The following field(s) do not exist in the worksheet: NonExistentField'
+				);
+			});
+
+			test('should filter successfully when all fields exist', async () => {
+				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+				const sheet = testWorkbook.addWorksheet('TestSheet');
+				sheet.addRow(['Name', 'Age', 'Email']);
+				sheet.addRow(['John', 30, 'john@example.com']);
+				sheet.addRow(['Jane', 25, 'jane@example.com']);
+				
+				const buffer = await testWorkbook.xlsx.writeBuffer();
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'filterRows',
+						inputMode: 'filePath',
+						filePath: '/test/path.xlsx',
+						sheetNameOptions: 'TestSheet',
+						filterConditions: {
+							conditions: [
+								{ field: 'Age', operator: 'greaterThan', value: '26' }
+							]
+						},
+						conditionLogic: 'and',
+					};
+					return params[paramName] ?? defaultValue;
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result).toBeDefined();
+				expect(result[0]).toHaveLength(1);
+				expect(result[0][0].json).toHaveProperty('Name', 'John');
+				expect(result[0][0].json).toHaveProperty('Age', 30);
+			});
+
+			test('should show available fields in error message', async () => {
+				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+				const sheet = testWorkbook.addWorksheet('TestSheet');
+				sheet.addRow(['Product', 'Price', 'Stock']);
+				sheet.addRow(['Item1', 100, 50]);
+				
+				const buffer = await testWorkbook.xlsx.writeBuffer();
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'filterRows',
+						inputMode: 'filePath',
+						filePath: '/test/path.xlsx',
+						sheetNameOptions: 'TestSheet',
+						filterConditions: {
+							conditions: [
+								{ field: 'Category', operator: 'equals', value: 'Electronics' }
+							]
+						},
+						conditionLogic: 'and',
+					};
+					return params[paramName] ?? defaultValue;
+				});
+
+				await expect(excelAI.execute.call(mockContext)).rejects.toThrow(
+					expect.objectContaining({
+						message: expect.stringContaining('Available fields are: Product, Price, Stock')
+					})
+				);
+			});
+		});
+
+		describe('Error Handling with continueOnFail', () => {
+			test('should return error in result when continueOnFail is true for filterRows', async () => {
+				mockContext.continueOnFail.mockReturnValue(true);
+				
+				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+				const sheet = testWorkbook.addWorksheet('TestSheet');
+				sheet.addRow(['Name', 'Age']);
+				sheet.addRow(['John', 30]);
+				
+				const buffer = await testWorkbook.xlsx.writeBuffer();
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'filterRows',
+						inputMode: 'filePath',
+						filePath: '/test/path.xlsx',
+						sheetNameOptions: 'TestSheet',
+						filterConditions: {
+							conditions: [
+								{ field: 'InvalidField', operator: 'equals', value: 'test' }
+							]
+						},
+						conditionLogic: 'and',
+					};
+					return params[paramName] ?? defaultValue;
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result).toBeDefined();
+				expect(result[0]).toHaveLength(1);
+				expect(result[0][0].json).toHaveProperty('error');
+				expect(result[0][0].json.error).toContain('InvalidField');
+			});
+		});
+	});
 });
 
 

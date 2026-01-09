@@ -252,6 +252,37 @@ Condition Logic: and
   - `rowNumber`: Row to update
   - `updatedData`: JSON object with fields to update
 - **Returns**: Success status and updated fields
+- **Column Validation**:
+  - ✅ Automatically skips non-existent columns without breaking execution
+  - ✅ Returns `updatedFields` array listing successfully updated columns
+  - ✅ Returns `skippedFields` array listing skipped columns (if any)
+  - ✅ Includes `warning` message explaining which fields were skipped
+
+**Update Row Example (with column validation):**
+```javascript
+{
+  "operation": "updateRow",
+  "rowNumber": 5,
+  "updatedData": {
+    "Status": "Completed",
+    "InvalidField": "test",  // This column doesn't exist
+    "Notes": "Updated"
+  }
+}
+```
+
+**Output:**
+```javascript
+{
+  "success": true,
+  "operation": "updateRow",
+  "rowNumber": 5,
+  "updatedFields": ["Status", "Notes"],
+  "skippedFields": ["InvalidField"],
+  "warning": "The following fields were not found in the worksheet and were skipped: InvalidField",
+  "message": "Row 5 updated successfully"
+}
+```
 
 #### Delete Row
 - **Purpose**: Remove specific row
@@ -268,6 +299,30 @@ Condition Logic: and
     - `value`: Value to compare (not required for isEmpty/isNotEmpty)
   - `conditionLogic`: and | or - How to combine multiple conditions
 - **Returns**: Array of matching rows with _rowNumber field
+- **Column Validation**:
+  - ❌ Throws error immediately if filter condition uses non-existent column
+  - ✅ Error message lists invalid fields and all available fields
+  - ✅ Prevents producing incorrect filter results
+  - ✅ Works in both File Path and Binary Data modes
+
+**Error Example:**
+```javascript
+// If "Category" column doesn't exist in the worksheet
+{
+  "operation": "filterRows",
+  "filterConditions": {
+    "conditions": [
+      { "field": "Category", "operator": "equals", "value": "Electronics" }
+    ]
+  }
+}
+```
+
+**Error Message:**
+```
+Filter condition error: The following field(s) do not exist in the worksheet: Category. 
+Available fields are: Product, Price, Stock, Status
+```
 
 **Filter Rows Examples:**
 

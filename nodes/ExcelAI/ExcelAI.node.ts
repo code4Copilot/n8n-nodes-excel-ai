@@ -964,6 +964,24 @@ export class ExcelAI implements INodeType {
 			headers[colNumber - 1] = header;
 		});
 
+		// Validate that all filter condition fields exist in the worksheet
+		if (filterConditions.conditions?.length > 0) {
+			const invalidFields: string[] = [];
+			filterConditions.conditions.forEach((condition: any) => {
+				const fieldName = condition.field;
+				if (fieldName && !headers.includes(fieldName)) {
+					invalidFields.push(fieldName);
+				}
+			});
+
+			if (invalidFields.length > 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					`Filter condition error: The following field(s) do not exist in the worksheet: ${invalidFields.join(', ')}. Available fields are: ${headers.filter(h => h).join(', ')}`
+				);
+			}
+		}
+
 		const allRows: any[] = [];
 		worksheet.eachRow((row, rowNumber) => {
 			if (rowNumber === 1) return; // Skip header
@@ -1101,23 +1119,36 @@ export class ExcelAI implements INodeType {
 		}
 
 		const row = worksheet.getRow(rowNumber);
+		const updatedFields: string[] = [];
+		const skippedFields: string[] = [];
 
 		Object.entries(data).forEach(([columnName, value]) => {
 			const colNumber = columnMap.get(columnName);
 			if (colNumber) {
 				row.getCell(colNumber).value = value as ExcelJS.CellValue;
+				updatedFields.push(columnName);
+			} else {
+				skippedFields.push(columnName);
 			}
 		});
 
 		row.commit();
 
-		return {
+		const result: any = {
 			success: true,
 			operation: 'updateRow',
 			rowNumber,
-			updatedFields: Object.keys(data),
+			updatedFields,
 			message: `Row ${rowNumber} updated successfully`,
 		};
+
+		// Include skippedFields information if any fields were skipped
+		if (skippedFields.length > 0) {
+			result.skippedFields = skippedFields;
+			result.warning = `The following fields were not found in the worksheet and were skipped: ${skippedFields.join(', ')}`;
+		}
+
+		return result;
 	}
 
 	private static async handleDeleteRow(
