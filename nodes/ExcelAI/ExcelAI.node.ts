@@ -880,10 +880,75 @@ export class ExcelAI implements INodeType {
 
 		columnMap.forEach((colNumber, columnName) => {
 			const value = rowData[columnName];
-			rowArray[colNumber - 1] = value !== undefined ? value : '';
+			// Apply automatic type conversion
+			rowArray[colNumber - 1] = value !== undefined ? ExcelAI.convertValue(value) : '';
 		});
 
 		return rowArray;
+	}
+
+	/**
+	 * Automatically converts string values to appropriate types
+	 * - Numbers: "123" -> 123, "45.67" -> 45.67
+	 * - Booleans: "true"/"false" -> true/false (case-insensitive)
+	 * - Null values: "null", "", whitespace -> null
+	 * - Dates: ISO 8601 format strings (e.g., "2024-01-15", "2024-01-15T10:30:00Z")
+	 * - Other values: preserved as-is
+	 */
+	private static convertValue(value: any): any {
+		// Handle null, undefined, or already non-string values
+		if (value === null || value === undefined) {
+			return null;
+		}
+
+		// If not a string, return as-is
+		if (typeof value !== 'string') {
+			return value;
+		}
+
+		// Trim whitespace
+		const trimmed = value.trim();
+
+		// Empty string or "null" -> null
+		if (trimmed === '' || trimmed.toLowerCase() === 'null') {
+			return null;
+		}
+
+		// Boolean values (case-insensitive)
+		if (trimmed.toLowerCase() === 'true') {
+			return true;
+		}
+		if (trimmed.toLowerCase() === 'false') {
+			return false;
+		}
+
+		// Try to parse as number
+		if (/^-?\d+$/.test(trimmed)) {
+			// Integer
+			const num = parseInt(trimmed, 10);
+			if (!isNaN(num)) {
+				return num;
+			}
+		} else if (/^-?\d*\.\d+$/.test(trimmed)) {
+			// Float
+			const num = parseFloat(trimmed);
+			if (!isNaN(num)) {
+				return num;
+			}
+		}
+
+		// Check for ISO 8601 date format
+		// Matches: YYYY-MM-DD, YYYY-MM-DDTHH:mm:ss, YYYY-MM-DDTHH:mm:ss.sssZ, etc.
+		if (/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:?\d{2})?)?$/.test(trimmed)) {
+			const date = new Date(trimmed);
+			if (!isNaN(date.getTime())) {
+				// Return as Date object for ExcelJS to handle properly
+				return date;
+			}
+		}
+
+		// Return original string if no conversion applies
+		return value;
 	}
 
 	private static parseJsonInput(context: IExecuteFunctions, input: string | object): any {
@@ -1125,7 +1190,8 @@ export class ExcelAI implements INodeType {
 		Object.entries(data).forEach(([columnName, value]) => {
 			const colNumber = columnMap.get(columnName);
 			if (colNumber) {
-				row.getCell(colNumber).value = value as ExcelJS.CellValue;
+				// Apply automatic type conversion
+				row.getCell(colNumber).value = ExcelAI.convertValue(value) as ExcelJS.CellValue;
 				updatedFields.push(columnName);
 			} else {
 				skippedFields.push(columnName);

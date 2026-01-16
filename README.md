@@ -13,6 +13,7 @@ A powerful n8n community node for performing CRUD (Create, Read, Update, Delete)
 - **Natural Language**: AI can interact with Excel files using conversational queries
 - **Auto Column Mapping**: Automatically detects and maps columns from your spreadsheets
 - **Smart Data Handling**: Accepts JSON data with intelligent field mapping
+- **Automatic Type Conversion**: Intelligently converts string inputs to proper types (numbers, booleans, dates, null)
 
 ### 📊 Complete CRUD Operations
 - **Read**: Query data with filters and pagination
@@ -222,7 +223,91 @@ Condition Logic: and
 }
 ```
 
-## 📚 Operations Reference
+## � Automatic Type Conversion
+
+The node automatically converts string values to appropriate types when adding or updating rows. This makes it easier to work with AI Agents and manual input.
+
+### Supported Conversions
+
+#### Numbers
+String numbers are automatically converted to numeric values:
+- `"123"` → `123` (integer)
+- `"45.67"` → `45.67` (float)
+- `"-99"` → `-99` (negative integer)
+- `"-123.45"` → `-123.45` (negative float)
+
+#### Booleans
+String booleans are converted (case-insensitive):
+- `"true"` → `true`
+- `"false"` → `false`
+- `"TRUE"` → `true`
+- `"False"` → `false`
+
+#### Dates
+ISO 8601 date strings are converted to Date objects:
+- `"2024-01-15"` → `Date object`
+- `"2024-01-15T10:30:00Z"` → `Date object`
+- `"2024-01-15T10:30:00.123Z"` → `Date object`
+
+#### Null Values
+The following are converted to `null`:
+- `"null"` (string) → `null`
+- `""` (empty string) → `null`
+- `"   "` (whitespace only) → `null`
+
+#### Preserved Values
+- Regular strings remain as strings: `"Hello"` → `"Hello"`
+- Already-converted values are preserved: `123` → `123`, `true` → `true`
+- Non-standard formats are preserved: `"$100"` → `"$100"`, `"N/A"` → `"N/A"`
+
+### Usage Examples
+
+**Example 1: Append Row with Type Conversion**
+```javascript
+{
+  "operation": "appendRow",
+  "rowData": {
+    "Name": "John Doe",      // String → "John Doe"
+    "Age": "30",             // String → 30 (number)
+    "Active": "true",        // String → true (boolean)
+    "JoinDate": "2024-01-15", // String → Date object
+    "Salary": "75000.50",    // String → 75000.50 (number)
+    "Notes": "null"          // String → null
+  }
+}
+```
+
+**Example 2: Update Row with Type Conversion**
+```javascript
+{
+  "operation": "updateRow",
+  "rowNumber": 5,
+  "updatedData": {
+    "Age": "35",             // String → 35 (number)
+    "Active": "FALSE",       // String → false (case-insensitive)
+    "Balance": "-100.50"     // String → -100.50 (negative number)
+  }
+}
+```
+
+**Example 3: AI Agent Integration**
+The AI can now pass values as strings without worrying about types:
+
+**User**: "Add a new employee: Alice, age 25, active status true"
+
+**AI Agent**:
+```javascript
+{
+  "operation": "appendRow",
+  "rowData": {
+    "Name": "Alice",
+    "Age": "25",        // AI passes string, auto-converts to 25
+    "Active": "true"    // AI passes string, auto-converts to true
+  }
+}
+```
+
+## �📚 Operations Reference
 
 ### Row Operations
 

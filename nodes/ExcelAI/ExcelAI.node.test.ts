@@ -1744,10 +1744,231 @@ describe('ExcelAI Node - Unit Tests', () => {
 			});
 		});
 	});
+
+	describe('Automatic Type Conversion', () => {
+		beforeEach(async () => {
+			// Create a test workbook with mixed data types
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Age', 'Active', 'CreatedAt', 'Balance', 'Notes']);
+			
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+		});
+
+		test('Append Row - should convert string numbers to numeric values', async () => {
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/path.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: JSON.stringify({
+						Name: 'John',
+						Age: '30',           // String number -> should convert to 30
+						Active: 'true',      // String boolean -> should convert to true
+						CreatedAt: '2024-01-15T10:30:00Z',  // ISO date
+						Balance: '1234.56',  // String float -> should convert to 1234.56
+						Notes: 'null'        // String "null" -> should convert to null
+					}),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0]).toHaveLength(1);
+			expect(result[0][0].json).toHaveProperty('success', true);
+			expect(result[0][0].json).toHaveProperty('operation', 'appendRow');
+		});
+
+		test('Update Row - should convert boolean strings to boolean values', async () => {
+			// First add a row
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Age', 'Active', 'CreatedAt', 'Balance', 'Notes']);
+			sheet.addRow(['Alice', 25, false, new Date(), 0, '']);
+			
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'updateRow',
+					inputMode: 'filePath',
+					filePath: '/test/path.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowNumber: 2,
+					updatedData: JSON.stringify({
+						Active: 'TRUE',      // Case-insensitive boolean
+						Age: '35',           // String number
+						Balance: '9999.99',  // String float
+					}),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0]).toHaveLength(1);
+			expect(result[0][0].json).toHaveProperty('success', true);
+			expect(result[0][0].json).toHaveProperty('operation', 'updateRow');
+		});
+
+		test('Insert Row - should handle null and empty values correctly', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Age', 'Active', 'CreatedAt', 'Balance', 'Notes']);
+			sheet.addRow(['Alice', 25, false, new Date(), 0, '']);
+			
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'insertRow',
+					inputMode: 'filePath',
+					filePath: '/test/path.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowNumber: 2,
+					rowData: JSON.stringify({
+						Name: 'Bob',
+						Age: '',             // Empty string -> should convert to null
+						Active: 'false',     // String boolean
+						CreatedAt: 'null',   // String "null" -> should convert to null
+						Balance: '0',        // String zero -> should convert to 0
+						Notes: '   '         // Whitespace -> should convert to null
+					}),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0]).toHaveLength(1);
+			expect(result[0][0].json).toHaveProperty('success', true);
+			expect(result[0][0].json).toHaveProperty('operation', 'insertRow');
+		});
+
+		test('Append Row - should convert ISO date strings to Date objects', async () => {
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/path.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: JSON.stringify({
+						Name: 'DateTest',
+						Age: '25',
+						Active: 'true',
+						CreatedAt: '2024-01-15',  // ISO date (date only)
+						Balance: '100',
+						Notes: ''
+					}),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0]).toHaveLength(1);
+			expect(result[0][0].json).toHaveProperty('success', true);
+		});
+
+		test('Append Row - should preserve non-string values as-is', async () => {
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/path.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: {  // Pass object directly (not JSON string)
+						Name: 'DirectTest',
+						Age: 42,             // Already a number
+						Active: true,        // Already a boolean
+						CreatedAt: new Date('2024-01-15'),  // Already a Date
+						Balance: 999.99,     // Already a number
+						Notes: null          // Already null
+					},
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0]).toHaveLength(1);
+			expect(result[0][0].json).toHaveProperty('success', true);
+		});
+
+		test('Append Row - should preserve regular strings without conversion', async () => {
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/path.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: JSON.stringify({
+						Name: 'StringTest',
+						Age: 'N/A',          // Non-numeric string
+						Active: 'maybe',     // Non-boolean string
+						CreatedAt: 'yesterday',  // Non-ISO date string
+						Balance: '$100',     // String with currency symbol
+						Notes: 'Some notes'  // Regular string
+					}),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0]).toHaveLength(1);
+			expect(result[0][0].json).toHaveProperty('success', true);
+		});
+
+		test('Append Row - should handle negative numbers and decimals', async () => {
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/path.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: JSON.stringify({
+						Name: 'NumberTest',
+						Age: '-5',           // Negative integer
+						Active: 'false',
+						CreatedAt: '2024-01-15',
+						Balance: '-123.45',  // Negative float
+						Notes: '0.123'       // Float without leading digit
+					}),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0]).toHaveLength(1);
+			expect(result[0][0].json).toHaveProperty('success', true);
+		});
+	});
 });
-
-
-
-
-
-

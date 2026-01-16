@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-01-16
+
+### Added
+- **Automatic Type Conversion**: Intelligent automatic type conversion for field input values
+  - **Numbers**: Converts string numbers to numeric values (e.g., "123" → 123, "45.67" → 45.67)
+  - **Booleans**: Converts string booleans to boolean values (e.g., "true" → true, "FALSE" → false, case-insensitive)
+  - **Dates**: Converts ISO 8601 date strings to Date objects (e.g., "2024-01-15" → Date, "2024-01-15T10:30:00Z" → Date)
+  - **Null Values**: Converts "null", empty strings, and whitespace-only strings to null
+  - **Smart Detection**: Preserves regular strings and already-converted values as-is
+  - Works in all row operations: Append Row, Insert Row, and Update Row
+
+### Improved
+- Enhanced AI Agent integration with automatic type handling
+- Users can now input values directly as strings without manual type conversion
+- Better data consistency in Excel files with proper type storage
+- Negative numbers and decimal values are properly handled
+
+### Tests
+- Added 7 comprehensive tests for automatic type conversion
+- All 62 tests passing with 100% success rate
+- Test coverage for numbers, booleans, dates, null values, and edge cases
+
+### Documentation
+- Added TYPE_CONVERSION_DEMO.md with detailed usage examples
+- Added TYPE_CONVERSION_VERIFICATION_REPORT.md with complete test results
+- Created demo scripts for type conversion functionality
+
 ## [1.0.6] - 2026-01-09
 
 ### Added
