@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2026-01-20
+
+### Added
+- **Smart Empty Row Handling**: Append Row now intelligently reuses the last empty row instead of always adding a new row
+  - Automatically detects if the last row is empty (all cells are null or empty string)
+  - Reuses empty row to keep Excel file clean and prevent unnecessary blank rows
+  - Returns `wasEmptyRowReused` flag to indicate whether an empty row was reused
+  - Message indicates "(reused empty row)" when applicable
+  - Works seamlessly with automatic type conversion
+
+### Improved
+- Excel files stay cleaner without accumulating empty rows at the end
+- Better resource efficiency by reusing existing rows when appropriate
+- Enhanced Append Row operation with intelligent row management
+
+### Tests
+- Added 5 comprehensive tests for empty row handling scenarios
+- Test coverage includes: empty row reuse, non-empty row append, multiple empty rows, whitespace handling
+- All 67 tests passing with 100% success rate
+- Complete test coverage report generated (TEST_COVERAGE_REPORT.md)
+
+### Documentation
+- Added TEST_COVERAGE_REPORT.md with complete test analysis (100% feature coverage)
+- Updated all documentation to reflect new smart empty row handling
+
 ## [1.0.7] - 2026-01-16
 
 ### Added

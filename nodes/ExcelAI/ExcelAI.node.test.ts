@@ -1971,4 +1971,185 @@ describe('ExcelAI Node - Unit Tests', () => {
 			expect(result[0][0].json).toHaveProperty('success', true);
 		});
 	});
+
+	// ===== Empty Row Handling Tests =====
+	describe('Empty Row Handling', () => {
+		test('Append Row - should reuse last empty row instead of adding new row', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Age', 'Department']);
+			sheet.addRow(['John', 30, 'IT']);
+			
+			// Create an empty row with actual cells (not addRow([]))
+			const emptyRow = sheet.getRow(3);
+			emptyRow.getCell(1).value = null;
+			emptyRow.getCell(2).value = null;
+			emptyRow.getCell(3).value = null;
+			emptyRow.commit();
+			
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/employees.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: JSON.stringify({ Name: 'Jane', Age: 25, Department: 'Sales' }),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0][0].json).toHaveProperty('success', true);
+			expect(result[0][0].json).toHaveProperty('operation', 'appendRow');
+			expect(result[0][0].json).toHaveProperty('rowNumber', 3); // Should reuse row 3
+			expect(result[0][0].json).toHaveProperty('wasEmptyRowReused', true);
+			expect(result[0][0].json.message).toContain('reused empty row');
+		});
+
+		test('Append Row - should add new row when last row is not empty', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Age', 'Department']);
+			sheet.addRow(['John', 30, 'IT']);
+			sheet.addRow(['Alice', 28, 'HR']); // Last row has data
+			
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/employees.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: JSON.stringify({ Name: 'Jane', Age: 25, Department: 'Sales' }),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0][0].json).toHaveProperty('success', true);
+			expect(result[0][0].json).toHaveProperty('operation', 'appendRow');
+			expect(result[0][0].json).toHaveProperty('rowNumber', 4); // Should add row 4
+			expect(result[0][0].json).toHaveProperty('wasEmptyRowReused', false);
+			expect(result[0][0].json.message).not.toContain('reused empty row');
+		});
+
+		test('Append Row - should handle multiple empty rows and reuse the last one', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Age', 'Department']);
+			sheet.addRow(['John', 30, 'IT']);
+			
+			// Create multiple empty rows with actual cells
+			for (let i = 3; i <= 5; i++) {
+				const emptyRow = sheet.getRow(i);
+				emptyRow.getCell(1).value = null;
+				emptyRow.getCell(2).value = null;
+				emptyRow.getCell(3).value = null;
+				emptyRow.commit();
+			}
+			
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/employees.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: JSON.stringify({ Name: 'Jane', Age: 25, Department: 'Sales' }),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0][0].json).toHaveProperty('success', true);
+			expect(result[0][0].json).toHaveProperty('rowNumber', 5); // Should reuse row 5 (last row)
+			expect(result[0][0].json).toHaveProperty('wasEmptyRowReused', true);
+		});
+
+		test('Append Row - should work normally when there are no empty rows', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Age', 'Department']);
+			sheet.addRow(['John', 30, 'IT']);
+			
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/employees.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: JSON.stringify({ Name: 'Jane', Age: 25, Department: 'Sales' }),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0][0].json).toHaveProperty('success', true);
+			expect(result[0][0].json).toHaveProperty('rowNumber', 3); // Should add row 3
+			expect(result[0][0].json).toHaveProperty('wasEmptyRowReused', false);
+		});
+
+		test('Append Row - should not reuse row with only whitespace', async () => {
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const sheet = testWorkbook.addWorksheet('TestSheet');
+			sheet.addRow(['Name', 'Age', 'Department']);
+			sheet.addRow(['John', 30, 'IT']);
+			
+			// Create a row with empty strings
+			const emptyRow = sheet.getRow(3);
+			emptyRow.getCell(1).value = '';
+			emptyRow.getCell(2).value = '';
+			emptyRow.getCell(3).value = '';
+			emptyRow.commit();
+			
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'appendRow',
+					inputMode: 'filePath',
+					filePath: '/test/employees.xlsx',
+					sheetNameOptions: 'TestSheet',
+					rowData: JSON.stringify({ Name: 'Jane', Age: 25, Department: 'Sales' }),
+					autoSave: false,
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result).toBeDefined();
+			expect(result[0][0].json).toHaveProperty('success', true);
+			expect(result[0][0].json).toHaveProperty('rowNumber', 3); // Should reuse row 3
+			expect(result[0][0].json).toHaveProperty('wasEmptyRowReused', true);
+		});
+	});
 });

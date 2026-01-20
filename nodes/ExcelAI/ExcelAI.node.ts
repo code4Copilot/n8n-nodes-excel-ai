@@ -1115,6 +1115,29 @@ export class ExcelAI implements INodeType {
 		return filteredRows;
 	}
 
+	private static isRowEmpty(worksheet: ExcelJS.Worksheet, rowNumber: number): boolean {
+		if (rowNumber < 1 || rowNumber > worksheet.rowCount) {
+			return false;
+		}
+
+		const row = worksheet.getRow(rowNumber);
+		
+		// Check if row has no values using hasValues property
+		if (!row.hasValues) {
+			return true;
+		}
+		
+		// If hasValues is true, check if all cells are empty
+		let hasData = false;
+		row.eachCell((cell) => {
+			if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+				hasData = true;
+			}
+		});
+
+		return !hasData;
+	}
+
 	private static async handleAppendRow(
 		context: IExecuteFunctions,
 		worksheet: ExcelJS.Worksheet,
@@ -1125,15 +1148,36 @@ export class ExcelAI implements INodeType {
 		const data = ExcelAI.parseJsonInput(context, rowDataInput);
 
 		const rowArray = ExcelAI.mapRowData(data, columnMap);
-		worksheet.addRow(rowArray);
-		const rowNumber = worksheet.rowCount;
+		
+		// Check if the last row is empty
+		const lastRowNumber = worksheet.rowCount;
+		let rowNumber: number;
+		let wasEmptyRowReused = false;
+		
+		if (lastRowNumber > 1 && ExcelAI.isRowEmpty(worksheet, lastRowNumber)) {
+			// Reuse the last empty row
+			const row = worksheet.getRow(lastRowNumber);
+			rowArray.forEach((value, index) => {
+				row.getCell(index + 1).value = value;
+			});
+			row.commit();
+			rowNumber = lastRowNumber;
+			wasEmptyRowReused = true;
+		} else {
+			// Add new row
+			worksheet.addRow(rowArray);
+			rowNumber = worksheet.rowCount;
+		}
 
 		return {
 			success: true,
 			operation: 'appendRow',
 			rowNumber,
 			data,
-			message: `Row added successfully at row ${rowNumber}`,
+			message: wasEmptyRowReused 
+				? `Row added successfully at row ${rowNumber} (reused empty row)` 
+				: `Row added successfully at row ${rowNumber}`,
+			wasEmptyRowReused,
 		};
 	}
 

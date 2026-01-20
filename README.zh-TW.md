@@ -315,9 +315,41 @@ AI 現在可以直接傳遞字串值，無需擔心型態問題：
 
 #### 附加列
 - **用途**：在工作表末端新增列
+- **智能空白列處理**：自動重用最後一列（如果為空白）
 - **參數**：
   - `rowData`：包含欄位名稱和值的 JSON 物件
-- **返回**：成功狀態和新列號
+- **返回**：成功狀態、列號和 `wasEmptyRowReused` 標記
+
+**智能行為：**
+- ✅ 偵測最後一列是否為空白（所有儲存格為 null 或空字串）
+- ✅ 重用空白列以保持 Excel 檔案整潔
+- ✅ 僅在最後一列包含資料時才新增新列
+- ✅ 重用空白列時返回 `wasEmptyRowReused: true`
+- ✅ 訊息中標註 "(reused empty row)" 以便識別
+
+**範例：**
+```javascript
+// 如果 Excel 的最後一列為空白，將被重用
+{
+  "operation": "appendRow",
+  "rowData": {
+    "Name": "Jane",
+    "Age": 25,
+    "Department": "Sales"
+  }
+}
+```
+
+**輸出（重用空白列時）：**
+```javascript
+{
+  "success": true,
+  "operation": "appendRow",
+  "rowNumber": 3,
+  "wasEmptyRowReused": true,
+  "message": "Row added successfully at row 3 (reused empty row)"
+}
+```
 
 #### 插入列
 - **用途**：在特定位置插入列

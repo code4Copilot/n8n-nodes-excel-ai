@@ -320,9 +320,41 @@ The AI can now pass values as strings without worrying about types:
 
 #### Append Row
 - **Purpose**: Add new row at the end of the sheet
+- **Smart Empty Row Handling**: Automatically reuses the last row if it's empty
 - **Parameters**:
   - `rowData`: JSON object with column names and values
-- **Returns**: Success status and new row number
+- **Returns**: Success status, row number, and `wasEmptyRowReused` flag
+
+**Smart Behavior:**
+- ✅ Detects if the last row is empty (all cells are null or empty string)
+- ✅ Reuses empty row to keep Excel file clean
+- ✅ Adds new row only when the last row contains data
+- ✅ Returns `wasEmptyRowReused: true` when an empty row is reused
+- ✅ Message indicates "(reused empty row)" when applicable
+
+**Example:**
+```javascript
+// If last row in Excel is empty, it will be reused
+{
+  "operation": "appendRow",
+  "rowData": {
+    "Name": "Jane",
+    "Age": 25,
+    "Department": "Sales"
+  }
+}
+```
+
+**Output (when reusing empty row):**
+```javascript
+{
+  "success": true,
+  "operation": "appendRow",
+  "rowNumber": 3,
+  "wasEmptyRowReused": true,
+  "message": "Row added successfully at row 3 (reused empty row)"
+}
+```
 
 #### Insert Row
 - **Purpose**: Insert row at specific position
