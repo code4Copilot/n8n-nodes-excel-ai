@@ -6,20 +6,12 @@
 
 A powerful n8n community node for performing CRUD (Create, Read, Update, Delete) operations on Excel files with **AI Agent support**. Works seamlessly with n8n AI Agents for natural language Excel operations.
 
+# > **v1.0.9 新增：所有 Excel cell 讀取皆回傳純值（數字、字串、日期、布林、公式結果、超連結文字、RichText 純文字、錯誤字串等），不再回傳物件，並有完整單元測試覆蓋。**
 ## ✨ Features
 
 ### 🤖 AI Agent Integration
-- **Native AI Support**: Works as AI Agent Tool (`usableAsTool: true`)
-- **Natural Language**: AI can interact with Excel files using conversational queries
-- **Auto Column Mapping**: Automatically detects and maps columns from your spreadsheets
-- **Smart Data Handling**: Accepts JSON data with intelligent field mapping
-- **Automatic Type Conversion**: Intelligently converts string inputs to proper types (numbers, booleans, dates, null)
+**Cell Value Extraction**: All cell values are returned as usable primitives (number, string, date, boolean, formula result, hyperlink text, rich text, error string, etc.), never as objects.
 
-### 📊 Complete CRUD Operations
-- **Read**: Query data with filters and pagination
-- **Create**: Add new rows with automatic column mapping
-- **Update**: Modify existing rows with partial updates
-- **Delete**: Remove rows by row number
 - **Filter**: Filter rows with advanced conditions and multiple operators
 
 ### 🗂️ Worksheet Management

@@ -1,4 +1,18 @@
 # Changelog
+#
+# [1.0.9] - 2026-02-21
+#
+### Added
+- **Cell Value Extraction**: All Excel cell value reading now uses `getCellValue` logic, ensuring output is always a usable primitive (number, string, date, boolean, formula result, hyperlink text, rich text, error string, etc.), never an object.
+- **Unit Tests**: Comprehensive tests for all ExcelJS cell types (formula, hyperlink, rich text, error, number, string, boolean, date, null).
+
+### Improved
+- Consistent cell value output for all operations (read, filter, worksheet info, etc.)
+- No breaking changes; all existing features and tests pass.
+
+### Documentation
+- Updated README.md and README.zh-TW.md to clarify cell value extraction logic and test coverage.
+
 
 All notable changes to this project will be documented in this file.
 

@@ -11,6 +11,25 @@ import * as ExcelJS from 'exceljs';
 import * as fs from 'fs/promises';
 
 export class ExcelAI implements INodeType {
+		/**
+		 * 取得 Excel cell 的純值，處理各種型態
+		 */
+		public static getCellValue(cell: ExcelJS.Cell): any {
+			switch (cell.type) {
+				case ExcelJS.ValueType.Formula:
+					return cell.result;
+				case ExcelJS.ValueType.Hyperlink:
+					return cell.value && typeof cell.value === 'object' && 'text' in cell.value ? cell.value.text : '';
+				case ExcelJS.ValueType.RichText:
+					return cell.value && typeof cell.value === 'object' && 'richText' in cell.value
+						? cell.value.richText.map((r: any) => r.text).join('')
+						: '';
+				case ExcelJS.ValueType.Error:
+					return cell.value && typeof cell.value === 'object' && 'error' in cell.value ? cell.value.error : '';
+				default:
+					return cell.value;
+			}
+		}
 	description: INodeTypeDescription = {
 		displayName: 'Excel AI',
 		name: 'excelAI',
@@ -643,8 +662,9 @@ export class ExcelAI implements INodeType {
 					const columns: INodePropertyOptions[] = [];
 
 					headerRow.eachCell((cell) => {
-						if (cell.value) {
-							const columnName = cell.value.toString().trim();
+						const cellVal = ExcelAI.getCellValue(cell);
+						if (cellVal) {
+							const columnName = cellVal.toString().trim();
 							columns.push({
 								name: columnName,
 								value: columnName,
@@ -866,8 +886,9 @@ export class ExcelAI implements INodeType {
 		const headerRow = worksheet.getRow(1);
 
 		headerRow.eachCell((cell, colNumber) => {
-			if (cell.value) {
-				const columnName = cell.value.toString().trim();
+			const cellVal = ExcelAI.getCellValue(cell);
+			if (cellVal) {
+				const columnName = cellVal.toString().trim();
 				columnMap.set(columnName, colNumber);
 			}
 		});
@@ -981,7 +1002,7 @@ export class ExcelAI implements INodeType {
 		const headers: string[] = [];
 
 		headerRow.eachCell((cell, colNumber) => {
-			headers[colNumber - 1] = cell.value?.toString() || '';
+			headers[colNumber - 1] = ExcelAI.getCellValue(cell)?.toString() || '';
 		});
 
 		const actualEndRow = endRow === 0 ? worksheet.rowCount : Math.min(endRow, worksheet.rowCount);
@@ -993,7 +1014,7 @@ export class ExcelAI implements INodeType {
 			row.eachCell((cell, colNumber) => {
 				const header = headers[colNumber - 1];
 				if (header) {
-					rowData[header] = cell.value;
+					rowData[header] = ExcelAI.getCellValue(cell);
 				}
 			});
 
@@ -1055,7 +1076,7 @@ export class ExcelAI implements INodeType {
 			row.eachCell((cell, colNumber) => {
 				const header = headers[colNumber - 1];
 				if (header) {
-					rowData[header] = cell.value;
+					rowData[header] = ExcelAI.getCellValue(cell);
 				}
 			});
 
@@ -1130,7 +1151,8 @@ export class ExcelAI implements INodeType {
 		// If hasValues is true, check if all cells are empty
 		let hasData = false;
 		row.eachCell((cell) => {
-			if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+			const cellVal = ExcelAI.getCellValue(cell);
+			if (cellVal !== null && cellVal !== undefined && cellVal !== '') {
 				hasData = true;
 			}
 		});
@@ -1447,7 +1469,7 @@ export class ExcelAI implements INodeType {
 			const newRow = newWorksheet.getRow(rowNumber);
 			row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
 				const newCell = newRow.getCell(colNumber);
-				newCell.value = cell.value;
+				newCell.value = ExcelAI.getCellValue(cell);
 				newCell.style = cell.style;
 			});
 			newRow.height = row.height;
@@ -1495,7 +1517,7 @@ export class ExcelAI implements INodeType {
 			columns.push({
 				index: colNumber,
 				letter: ExcelAI.columnNumberToLetter(colNumber),
-				header: cell.value?.toString() || '',
+				header: ExcelAI.getCellValue(cell)?.toString() || '',
 				width: column.width || 10,
 			});
 		});

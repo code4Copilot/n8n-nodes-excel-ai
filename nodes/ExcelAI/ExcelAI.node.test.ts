@@ -45,6 +45,46 @@ jest.mock('exceljs', () => {
 });
 
 describe('ExcelAI Node - Unit Tests', () => {
+		// ===== getCellValue 單元測試 =====
+		describe('getCellValue', () => {
+			it('should return formula result', () => {
+				const cell: any = { type: ExcelJS.ValueType.Formula, result: 123, value: { formula: 'A1+B1', result: 123 } };
+				expect(ExcelAI.getCellValue(cell)).toBe(123);
+			});
+			it('should return hyperlink text', () => {
+				const cell: any = { type: ExcelJS.ValueType.Hyperlink, value: { text: 'Google', hyperlink: 'https://google.com' } };
+				expect(ExcelAI.getCellValue(cell)).toBe('Google');
+			});
+			it('should return rich text as plain string', () => {
+				const cell: any = { type: ExcelJS.ValueType.RichText, value: { richText: [{ text: 'Hello' }, { text: 'World' }] } };
+				expect(ExcelAI.getCellValue(cell)).toBe('HelloWorld');
+			});
+			it('should return error string', () => {
+				const cell: any = { type: ExcelJS.ValueType.Error, value: { error: '#DIV/0!' } };
+				expect(ExcelAI.getCellValue(cell)).toBe('#DIV/0!');
+			});
+			it('should return primitive value for number', () => {
+				const cell: any = { type: ExcelJS.ValueType.Number, value: 42 };
+				expect(ExcelAI.getCellValue(cell)).toBe(42);
+			});
+			it('should return primitive value for string', () => {
+				const cell: any = { type: ExcelJS.ValueType.String, value: 'abc' };
+				expect(ExcelAI.getCellValue(cell)).toBe('abc');
+			});
+			it('should return primitive value for boolean', () => {
+				const cell: any = { type: ExcelJS.ValueType.Boolean, value: true };
+				expect(ExcelAI.getCellValue(cell)).toBe(true);
+			});
+			it('should return primitive value for date', () => {
+				const date = new Date('2024-01-01');
+				const cell: any = { type: ExcelJS.ValueType.Date, value: date };
+				expect(ExcelAI.getCellValue(cell)).toBe(date);
+			});
+			it('should return undefined for empty cell', () => {
+				const cell: any = { type: ExcelJS.ValueType.Null, value: undefined };
+				expect(ExcelAI.getCellValue(cell)).toBeUndefined();
+			});
+		});
 	let excelAI: ExcelAI;
 	let mockContext: jest.Mocked<IExecuteFunctions>;
 	let mockLoadOptionsContext: jest.Mocked<ILoadOptionsFunctions>;
