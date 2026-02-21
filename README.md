@@ -6,7 +6,9 @@
 
 A powerful n8n community node for performing CRUD (Create, Read, Update, Delete) operations on Excel files with **AI Agent support**. Works seamlessly with n8n AI Agents for natural language Excel operations.
 
-# > **v1.0.9 新增：所有 Excel cell 讀取皆回傳純值（數字、字串、日期、布林、公式結果、超連結文字、RichText 純文字、錯誤字串等），不再回傳物件，並有完整單元測試覆蓋。**
+> **v1.0.10 改進：工作表下拉選單錯誤狀態改用 `__error__` 哨兵值，提供更清楚的 ⚠ 警告提示，避免以無效工作表名稱提交，提升操作體驗。**
+
+> **v1.0.9 新增：所有 Excel cell 讀取皆回傳純值（數字、字串、日期、布林、公式結果、超連結文字、RichText 純文字、錯誤字串等），不再回傳物件，並有完整單元測試覆蓋。**
 ## ✨ Features
 
 ### 🤖 AI Agent Integration

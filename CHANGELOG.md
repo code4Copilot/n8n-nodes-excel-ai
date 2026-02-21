@@ -1,7 +1,26 @@
 # Changelog
-#
-# [1.0.9] - 2026-02-21
-#
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.10] - 2026-02-21
+
+### Improved
+- **Worksheet Dropdown UX**: Error states in worksheet selection dropdown now use `__error__` sentinel value instead of empty string
+  - Empty path, no worksheets found, and file path errors all return distinct `__error__` entries with clear ⚠ warning messages
+  - Prevents accidental submission with an invalid/empty sheet name
+  - `getColumns` now correctly skips `__error__` sentinel and waits for a valid selection
+  - Sheet name resolution treats `__error__` as "use first worksheet" fallback
+- **Worksheet Description**: Updated worksheet field description to hint users to reselect after correcting the file path
+
+### Tests
+- Added tests covering `__error__` sentinel handling in sheet name resolution
+- All tests passing with 100% success rate
+
+## [1.0.9] - 2026-02-21
+
 ### Added
 - **Cell Value Extraction**: All Excel cell value reading now uses `getCellValue` logic, ensuring output is always a usable primitive (number, string, date, boolean, formula result, hyperlink text, rich text, error string, etc.), never an object.
 - **Unit Tests**: Comprehensive tests for all ExcelJS cell types (formula, hyperlink, rich text, error, number, string, boolean, date, null).
@@ -12,12 +31,6 @@
 
 ### Documentation
 - Updated README.md and README.zh-TW.md to clarify cell value extraction logic and test coverage.
-
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.0.8] - 2026-01-20
 

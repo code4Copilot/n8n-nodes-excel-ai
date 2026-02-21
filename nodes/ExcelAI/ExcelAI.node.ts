@@ -239,9 +239,9 @@ export class ExcelAI implements INodeType {
 					loadOptionsMethod: 'getWorksheets',
 					loadOptionsDependsOn: ['filePath'],
 				},
-				default: '',
-				required: false,
-				description: 'Name of the worksheet to operate on. If not specified, the first worksheet will be used.',
+				   default: '',
+				   required: false,
+				   description: 'Name of the worksheet to operate on. If not specified, the first worksheet will be used. If error occurs, please reselect after correcting the file path.',
 			},
 
 			// Sheet Name for Binary Mode
@@ -578,14 +578,14 @@ export class ExcelAI implements INodeType {
 
 					const filePath = this.getNodeParameter('filePath') as string;
 
-					if (!filePath || filePath.trim() === '') {
-						return [
-							{
-								name: 'Please specify file path first',
-								value: '',
-							},
-						];
-					}
+					   if (!filePath || filePath.trim() === '') {
+						   return [
+							   {
+								   name: '⚠ Please specify file path first',
+								   value: '__error__',
+							   },
+						   ];
+					   }
 
 					// Check file exists and is accessible
 					await fs.access(filePath);
@@ -598,25 +598,24 @@ export class ExcelAI implements INodeType {
 						value: sheet.name,
 					}));
 
-					if (sheets.length === 0) {
-						return [
-							{
-								name: 'No worksheets found in file',
-								value: '',
-							},
-						];
-					}
+					   if (sheets.length === 0) {
+						   return [
+							   {
+								   name: '⚠ No worksheets found in the specified file',
+								   value: '__error__',
+							   },
+						   ];
+					   }
 
 					return sheets;
-				} catch (error) {
-					const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-					return [
-						{
-							name: `Error: ${errorMessage}`,
-							value: '',
-						},
-					];
-				}
+				   } catch (error) {
+					   return [
+						   {
+							   name: '⚠ File path error: Please enter a valid path, then click here to select a worksheet',
+							   value: '__error__',
+						   },
+					   ];
+				   }
 			},
 
 			// Get available columns
@@ -635,7 +634,7 @@ export class ExcelAI implements INodeType {
 				const filePath = this.getNodeParameter('filePath') as string;
 				const sheetName = this.getNodeParameter('sheetNameOptions', '') as string;
 
-				if (!filePath || !sheetName) {
+				if (!filePath || !sheetName || sheetName === '__error__') {
 					return [
 						{
 							name: 'Please specify file path and sheet name first',
@@ -724,21 +723,24 @@ export class ExcelAI implements INodeType {
 
 				if (resource === 'row') {
 					const operation = this.getNodeParameter('operation', currentIndex) as string;
-					let sheetName = inputMode === 'filePath'
-						? this.getNodeParameter('sheetNameOptions', currentIndex, '') as string
-						: this.getNodeParameter('sheetName', currentIndex, '') as string;
+					   let sheetName = inputMode === 'filePath'
+						   ? this.getNodeParameter('sheetNameOptions', currentIndex, '') as string
+						   : this.getNodeParameter('sheetName', currentIndex, '') as string;
 
-					// If no sheet name specified, use the first worksheet
-					if (!sheetName) {
-						const firstWorksheet = workbook.worksheets[0];
-						if (!firstWorksheet) {
-							throw new NodeOperationError(
-								this.getNode(),
-								'No worksheets found in the workbook'
-							);
-						}
-						sheetName = firstWorksheet.name;
-					}
+					   // 忽略錯誤標記值，若為 __error__ 則視為未選擇
+					   if (sheetName === '__error__') sheetName = '';
+
+					   // If no sheet name specified, use the first worksheet
+					   if (!sheetName) {
+						   const firstWorksheet = workbook.worksheets[0];
+						   if (!firstWorksheet) {
+							   throw new NodeOperationError(
+								   this.getNode(),
+								   'No worksheets found in the workbook'
+							   );
+						   }
+						   sheetName = firstWorksheet.name;
+					   }
 
 					const worksheet = workbook.getWorksheet(sheetName);
 					if (!worksheet) {
@@ -1382,9 +1384,15 @@ export class ExcelAI implements INodeType {
 		workbook: ExcelJS.Workbook,
 		itemIndex: number
 	): Promise<any> {
-		const worksheetName = context.getNodeParameter('worksheetNameOptions', itemIndex) as string;
-		const worksheet = workbook.getWorksheet(worksheetName);
 
+		const worksheetName = context.getNodeParameter('worksheetNameOptions', itemIndex) as string;
+		if (worksheetName === '__error__' || !worksheetName) {
+			throw new NodeOperationError(
+				context.getNode(),
+				'Please select a valid worksheet'
+			);
+		}
+		const worksheet = workbook.getWorksheet(worksheetName);
 		if (!worksheet) {
 			throw new NodeOperationError(
 				context.getNode(),
@@ -1407,10 +1415,16 @@ export class ExcelAI implements INodeType {
 		workbook: ExcelJS.Workbook,
 		itemIndex: number
 	): Promise<any> {
+
 		const worksheetName = context.getNodeParameter('worksheetNameOptions', itemIndex) as string;
 		const newSheetName = context.getNodeParameter('newSheetName', itemIndex) as string;
+		if (worksheetName === '__error__' || !worksheetName) {
+			throw new NodeOperationError(
+				context.getNode(),
+				'Please select a valid worksheet'
+			);
+		}
 		const worksheet = workbook.getWorksheet(worksheetName);
-
 		if (!worksheet) {
 			throw new NodeOperationError(
 				context.getNode(),
@@ -1443,6 +1457,9 @@ export class ExcelAI implements INodeType {
 		itemIndex: number
 	): Promise<any> {
 		const worksheetName = context.getNodeParameter('worksheetNameOptions', itemIndex) as string;
+		if (worksheetName === '__error__' || !worksheetName) {
+			throw new NodeOperationError(context.getNode(), 'Please select a valid worksheet');
+		}
 		const newSheetName = context.getNodeParameter('newSheetName', itemIndex) as string;
 		const sourceWorksheet = workbook.getWorksheet(worksheetName);
 
@@ -1499,6 +1516,9 @@ export class ExcelAI implements INodeType {
 		itemIndex: number
 	): Promise<any> {
 		const worksheetName = context.getNodeParameter('worksheetNameOptions', itemIndex) as string;
+		if (worksheetName === '__error__' || !worksheetName) {
+			throw new NodeOperationError(context.getNode(), 'Please select a valid worksheet');
+		}
 		const worksheet = workbook.getWorksheet(worksheetName);
 
 		if (!worksheet) {

@@ -224,6 +224,53 @@ describe('ExcelAI Node - Unit Tests', () => {
 			}
 		});
 
+		test('getWorksheets should return __error__ when file path is missing', async () => {
+			mockLoadOptionsContext.getNodeParameter.mockImplementation((paramName: string) => {
+				if (paramName === 'inputMode') return 'filePath';
+				if (paramName === 'filePath') return '';
+				return undefined;
+			});
+			const getWorksheets = excelAI.methods?.loadOptions?.getWorksheets;
+			const result = await getWorksheets.call(mockLoadOptionsContext);
+			expect(result).toHaveLength(1);
+			expect(result[0].value).toBe('__error__');
+			expect(result[0].name).toMatch(/specify file path/i);
+		});
+
+		test('getWorksheets should return __error__ when file not found', async () => {
+			(fs.access as jest.Mock).mockRejectedValueOnce(new Error('File not found'));
+			mockLoadOptionsContext.getNodeParameter.mockImplementation((paramName: string) => {
+				if (paramName === 'inputMode') return 'filePath';
+				if (paramName === 'filePath') return '/not/exist.xlsx';
+				return undefined;
+			});
+			const getWorksheets = excelAI.methods?.loadOptions?.getWorksheets;
+			const result = await getWorksheets.call(mockLoadOptionsContext);
+			expect(result).toHaveLength(1);
+			expect(result[0].value).toBe('__error__');
+			expect(result[0].name).toMatch(/error/i);
+		});
+
+		test('execute should fallback to first worksheet if sheetNameOptions is __error__', async () => {
+			// 不建立 worksheet，觸發 fallback 行為
+			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
+			const buffer = await testWorkbook.xlsx.writeBuffer();
+			(global as any).__mockExcelBuffer__ = buffer;
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'readRows',
+					inputMode: 'filePath',
+					filePath: '/test/file.xlsx',
+					sheetNameOptions: '__error__',
+				};
+				return params[paramName] ?? fallback;
+			});
+
+			await expect(excelAI.execute.call(mockContext)).rejects.toThrow('No worksheets found in the workbook');
+		});
+
 		test('getColumns should return columns list', async () => {
 			const testWorkbook = new (jest.requireActual('exceljs')).Workbook();
 			const sheet = testWorkbook.addWorksheet('TestSheet');
@@ -1182,15 +1229,15 @@ describe('ExcelAI Node - Unit Tests', () => {
 		const buffer = await testWorkbook.xlsx.writeBuffer();
 		(global as any).__mockExcelBuffer__ = buffer;
 
-		mockContext.getNodeParameter.mockImplementation((paramName: string) => {
+		mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex?: number, fallback?: any) => {
 			const params: Record<string, any> = {
 				resource: 'worksheet',
 				worksheetOperation: 'deleteWorksheet',
 				inputMode: 'filePath',
 				filePath: '/test/workbook.xlsx',
-				sheetNameOptions: 'ToDelete',
+				worksheetNameOptions: 'ToDelete',
 			};
-			return params[paramName];
+			return params[paramName] ?? fallback;
 		});
 
 		const result = await excelAI.execute.call(mockContext);
@@ -1758,7 +1805,7 @@ describe('ExcelAI Node - Unit Tests', () => {
 				const buffer = await testWorkbook.xlsx.writeBuffer();
 				(global as any).__mockExcelBuffer__ = buffer;
 
-				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultValue?: any) => {
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallback?: any) => {
 					const params: Record<string, any> = {
 						resource: 'row',
 						operation: 'filterRows',
@@ -1772,7 +1819,7 @@ describe('ExcelAI Node - Unit Tests', () => {
 						},
 						conditionLogic: 'and',
 					};
-					return params[paramName] ?? defaultValue;
+					return params[paramName] ?? fallback;
 				});
 
 				const result = await excelAI.execute.call(mockContext);
