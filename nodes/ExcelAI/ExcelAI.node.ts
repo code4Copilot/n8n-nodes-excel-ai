@@ -12,7 +12,7 @@ import * as fs from 'fs/promises';
 
 export class ExcelAI implements INodeType {
 		/**
-		 * 取得 Excel cell 的純值，處理各種型態
+		 * ?��? Excel cell ?��??��??��??�種?��?
 		 */
 		public static getCellValue(cell: ExcelJS.Cell): any {
 			switch (cell.type) {
@@ -239,9 +239,9 @@ export class ExcelAI implements INodeType {
 					loadOptionsMethod: 'getWorksheets',
 					loadOptionsDependsOn: ['filePath'],
 				},
-				   default: '',
-				   required: false,
-				   description: 'Name of the worksheet to operate on. If not specified, the first worksheet will be used. If error occurs, please reselect after correcting the file path.',
+				default: '',
+				required: false,
+				description: 'Name of the worksheet to operate on. If not specified, the first worksheet will be used. If error occurs, please reselect after correcting the file path.',
 			},
 
 			// Sheet Name for Binary Mode
@@ -578,15 +578,14 @@ export class ExcelAI implements INodeType {
 
 					const filePath = this.getNodeParameter('filePath') as string;
 
-					   if (!filePath || filePath.trim() === '') {
-						   return [
-							   {
-								   name: '⚠ Please specify file path first',
-								   value: '__error__',
-							   },
-						   ];
-					   }
-
+					if (!filePath || filePath.trim() === '') {
+						return [
+							{
+								name: '⚠ Please specify file path first',
+								value: '__error__',
+							},
+						];
+					}
 					// Check file exists and is accessible
 					await fs.access(filePath);
 					
@@ -598,24 +597,23 @@ export class ExcelAI implements INodeType {
 						value: sheet.name,
 					}));
 
-					   if (sheets.length === 0) {
-						   return [
-							   {
-								   name: '⚠ No worksheets found in the specified file',
-								   value: '__error__',
-							   },
-						   ];
-					   }
-
+					if (sheets.length === 0) {
+						return [
+						{
+							name: '⚠ No worksheets found in the specified file',
+							value: '__error__',
+						},
+					];
+				}
 					return sheets;
-				   } catch (error) {
-					   return [
-						   {
-							   name: '⚠ File path error: Please enter a valid path, then click here to select a worksheet',
-							   value: '__error__',
-						   },
-					   ];
-				   }
+				} catch (error) {
+					return [
+						{
+							name: '⚠ File path error: Please enter a valid path, then click here to select a worksheet',
+							value: '__error__',
+						},
+					];
+				}
 			},
 
 			// Get available columns
@@ -723,25 +721,24 @@ export class ExcelAI implements INodeType {
 
 				if (resource === 'row') {
 					const operation = this.getNodeParameter('operation', currentIndex) as string;
-					   let sheetName = inputMode === 'filePath'
-						   ? this.getNodeParameter('sheetNameOptions', currentIndex, '') as string
-						   : this.getNodeParameter('sheetName', currentIndex, '') as string;
+					let sheetName = inputMode === 'filePath'
+						? this.getNodeParameter('sheetNameOptions', currentIndex, '') as string
+						: this.getNodeParameter('sheetName', currentIndex, '') as string;
 
-					   // 忽略錯誤標記值，若為 __error__ 則視為未選擇
-					   if (sheetName === '__error__') sheetName = '';
+					// 忽略?�誤標�??��??�為 __error__ ?��??�未?��?
+					if (sheetName === '__error__') sheetName = '';
 
-					   // If no sheet name specified, use the first worksheet
-					   if (!sheetName) {
-						   const firstWorksheet = workbook.worksheets[0];
-						   if (!firstWorksheet) {
-							   throw new NodeOperationError(
-								   this.getNode(),
-								   'No worksheets found in the workbook'
-							   );
-						   }
-						   sheetName = firstWorksheet.name;
-					   }
-
+					// If no sheet name specified, use the first worksheet
+					if (!sheetName) {
+						const firstWorksheet = workbook.worksheets[0];
+						if (!firstWorksheet) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'No worksheets found in the workbook'
+							);
+						}
+						sheetName = firstWorksheet.name;
+					}
 					const worksheet = workbook.getWorksheet(sheetName);
 					if (!worksheet) {
 						throw new NodeOperationError(
