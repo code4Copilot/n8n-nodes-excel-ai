@@ -169,6 +169,12 @@ export class ExcelAI implements INodeType {
 						description: 'Delete a specific row',
 						action: 'Delete row from Excel',
 					},
+					{
+						name: 'Clear Rows',
+						value: 'clearRows',
+						description: 'Clear data rows while keeping header row',
+						action: 'Clear rows in Excel',
+					},
 				],
 				default: 'readRows',
 			},
@@ -462,6 +468,21 @@ export class ExcelAI implements INodeType {
 				default: 2,
 				required: true,
 				description: 'Target row number (1-based, row 1 is header)',
+			},
+
+			// Keep Header Row for Clear Rows
+			{
+				displayName: 'Keep Header Row',
+				name: 'keepHeader',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['row'],
+						operation: ['clearRows'],
+					},
+				},
+				default: true,
+				description: 'Whether to keep the first row (header) when clearing',
 			},
 
 			// Updated Data for Update
@@ -781,6 +802,13 @@ export class ExcelAI implements INodeType {
 
 						case 'deleteRow':
 							result = await ExcelAI.handleDeleteRow(this, worksheet, currentIndex);
+							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
+								await workbook.xlsx.writeFile(filePath);
+							}
+							break;
+
+						case 'clearRows':
+							result = await ExcelAI.handleClearRows(this, worksheet, currentIndex);
 							if (inputMode === 'filePath' && this.getNodeParameter('autoSave', currentIndex, true)) {
 								await workbook.xlsx.writeFile(filePath);
 							}
@@ -1303,6 +1331,38 @@ export class ExcelAI implements INodeType {
 			operation: 'deleteRow',
 			rowNumber,
 			message: `Row ${rowNumber} deleted successfully`,
+		};
+	}
+
+	private static async handleClearRows(
+		context: IExecuteFunctions,
+		worksheet: ExcelJS.Worksheet,
+		itemIndex: number
+	): Promise<any> {
+		const keepHeader = context.getNodeParameter('keepHeader', itemIndex, true) as boolean;
+		const startRow = keepHeader ? 2 : 1;
+		const totalRows = worksheet.rowCount;
+
+		if (totalRows < startRow) {
+			return {
+				success: true,
+				operation: 'clearRows',
+				clearedRows: 0,
+				message: 'No data rows to clear',
+			};
+		}
+
+		// 從最後一列往前刪，避免 index 錯位
+		for (let r = totalRows; r >= startRow; r--) {
+			worksheet.spliceRows(r, 1);
+		}
+
+		const clearedRows = totalRows - startRow + 1;
+		return {
+			success: true,
+			operation: 'clearRows',
+			clearedRows,
+			message: `Cleared ${clearedRows} row${clearedRows !== 1 ? 's' : ''}`,
 		};
 	}
 

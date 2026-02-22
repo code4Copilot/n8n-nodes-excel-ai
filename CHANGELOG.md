@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-02-22
+
+### Added
+- **Clear Rows Operation**: New operation to clear all data rows while keeping the header row
+  - `keepHeader` option (default: `true`) preserves the first row as header when clearing
+  - Deletes rows from bottom up to avoid index shifting issues
+  - Returns `clearedRows` count and descriptive `message` in the output
+  - Works with both File Path and Binary Data modes
+  - Full AI Agent support
+
+### Tests
+- Added tests for Clear Rows operation (keep header, clear all rows)
+- All 84 tests passing with 100% success rate
+
 ## [1.0.10] - 2026-02-21
 
 ### Improved
@@ -14,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `getColumns` now correctly skips `__error__` sentinel and waits for a valid selection
   - Sheet name resolution treats `__error__` as "use first worksheet" fallback
 - **Worksheet Description**: Updated worksheet field description to hint users to reselect after correcting the file path
+
+### Fixed
+- **Code Quality**: Corrected mixed tab/space indentation throughout `ExcelAI.node.ts` for consistent code style
+- **Warning Symbols**: Restored missing `⚠` warning symbols in worksheet dropdown error entries
 
 ### Tests
 - Added tests covering `__error__` sentinel handling in sheet name resolution

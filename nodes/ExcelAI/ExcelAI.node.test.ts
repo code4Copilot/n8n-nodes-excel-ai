@@ -185,6 +185,7 @@ describe('ExcelAI Node - Unit Tests', () => {
 			expect(operationValues).toContain('updateRow');
 			expect(operationValues).toContain('deleteRow');
 			expect(operationValues).toContain('filterRows');
+			expect(operationValues).toContain('clearRows');
 		});
 	});
 
@@ -423,6 +424,98 @@ describe('ExcelAI Node - Unit Tests', () => {
 			expect(result).toBeDefined();
 			expect(result[0][0].json).toHaveProperty('success', true);
 			expect(result[0][0].json).toHaveProperty('operation', 'deleteRow');
+		});
+
+		// ===== Clear Rows Tests =====
+		describe('Clear Rows', () => {
+			async function buildBuffer(rows: any[][]): Promise<Buffer> {
+				const wb = new (jest.requireActual('exceljs')).Workbook();
+				const ws = wb.addWorksheet('TestSheet');
+				rows.forEach((r) => ws.addRow(r));
+				return wb.xlsx.writeBuffer() as Promise<Buffer>;
+			}
+
+			function setupParams(extra: Record<string, any> = {}) {
+				mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, defaultVal?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'clearRows',
+						inputMode: 'filePath',
+						filePath: '/test/data.xlsx',
+						sheetNameOptions: 'TestSheet',
+						keepHeader: true,
+						autoSave: false,
+						...extra,
+					};
+					return paramName in params ? params[paramName] : defaultVal;
+				});
+			}
+
+			test('should clear all data rows and keep header', async () => {
+				(global as any).__mockExcelBuffer__ = await buildBuffer([
+					['ID', 'Name'],
+					[1, 'Alice'],
+					[2, 'Bob'],
+					[3, 'Carol'],
+				]);
+				setupParams({ keepHeader: true });
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json).toHaveProperty('operation', 'clearRows');
+				expect(result[0][0].json).toHaveProperty('clearedRows', 3);
+				expect(result[0][0].json).toHaveProperty('message', 'Cleared 3 rows');
+			});
+
+			test('should clear all rows including header when keepHeader is false', async () => {
+				(global as any).__mockExcelBuffer__ = await buildBuffer([
+					['ID', 'Name'],
+					[1, 'Alice'],
+					[2, 'Bob'],
+				]);
+				setupParams({ keepHeader: false });
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json).toHaveProperty('clearedRows', 3);
+				expect(result[0][0].json).toHaveProperty('message', 'Cleared 3 rows');
+			});
+
+			test('should return clearedRows 0 when sheet has only header row', async () => {
+				(global as any).__mockExcelBuffer__ = await buildBuffer([
+					['ID', 'Name'],
+				]);
+				setupParams({ keepHeader: true });
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json).toHaveProperty('clearedRows', 0);
+				expect(result[0][0].json).toHaveProperty('message', 'No data rows to clear');
+			});
+
+			test('should use singular "row" in message when clearing exactly 1 row', async () => {
+				(global as any).__mockExcelBuffer__ = await buildBuffer([
+					['ID', 'Name'],
+					[1, 'Alice'],
+				]);
+				setupParams({ keepHeader: true });
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('clearedRows', 1);
+				expect(result[0][0].json).toHaveProperty('message', 'Cleared 1 row');
+			});
+
+			test('should have keepHeader parameter defined in node description', () => {
+				const prop = excelAI.description.properties.find((p: any) => p.name === 'keepHeader');
+				expect(prop).toBeDefined();
+				expect(prop?.type).toBe('boolean');
+				expect(prop?.default).toBe(true);
+				expect(prop?.displayOptions?.show?.operation).toContain('clearRows');
+			});
 		});
 
 		test('Insert Row - should insert row at specified position', async () => {
