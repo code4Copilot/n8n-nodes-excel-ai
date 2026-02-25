@@ -12,7 +12,7 @@ import * as fs from 'fs/promises';
 
 export class ExcelAI implements INodeType {
 		/**
-		 * ?��? Excel cell ?��??��??��??�種?��?
+		 * 取得 Excel cell 的各種數值
 		 */
 		public static getCellValue(cell: ExcelJS.Cell): any {
 			switch (cell.type) {
@@ -485,6 +485,33 @@ export class ExcelAI implements INodeType {
 				description: 'Whether to keep the first row (header) when clearing',
 			},
 
+			// Update Mode Switch
+			{
+				displayName: 'Update Mode',
+				name: 'updateMode',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['row'],
+						operation: ['updateRow'],
+					},
+				},
+				options: [
+					{
+						name: 'JSON',
+						value: 'json',
+						description: 'Provide update data as a JSON object',
+					},
+					{
+						name: 'Fields',
+						value: 'fields',
+						description: 'Specify fields individually using Add Field',
+					},
+				],
+				default: 'json',
+				description: 'How to specify the data to update',
+			},
+
 			// Updated Data for Update
 			{
 				displayName: 'Updated Data',
@@ -494,12 +521,56 @@ export class ExcelAI implements INodeType {
 					show: {
 						resource: ['row'],
 						operation: ['updateRow'],
+						updateMode: ['json'],
 					},
 				},
 				default: '{}',
 				required: true,
 				placeholder: '{"Email": "newemail@example.com", "Status": "Active"}',
 				description: 'Data to update as JSON object. Only specified columns will be updated.',
+			},
+
+			// Update Fields (Add Field mode)
+			{
+				displayName: 'Fields to Update',
+				name: 'updateFields',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true },
+				displayOptions: {
+					show: {
+						resource: ['row'],
+						operation: ['updateRow'],
+						updateMode: ['fields'],
+					},
+				},
+				default: {},
+				options: [
+					{
+						name: 'fields',
+						displayName: 'Field',
+						values: [
+							{
+								displayName: 'Field Name',
+								name: 'fieldName',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getColumns',
+									loadOptionsDependsOn: ['filePath', 'sheetNameOptions'],
+								},
+								default: '',
+								description: 'Name of the column to update',
+							},
+							{
+								displayName: 'Value',
+								name: 'fieldValue',
+								type: 'string',
+								default: '',
+								description: 'Value to set for this field',
+							},
+						],
+					},
+				],
+				description: 'Fields to update. Use Add Field to specify each column individually.',
 			},
 
 			// Worksheet Parameters
@@ -760,7 +831,7 @@ export class ExcelAI implements INodeType {
 						? this.getNodeParameter('sheetNameOptions', currentIndex, '') as string
 						: this.getNodeParameter('sheetName', currentIndex, '') as string;
 
-					// 忽略?�誤標�??��??�為 __error__ ?��??�未?��?
+					// 忽略錯誤標記，視為 __error__ 或未指定
 					if (sheetName === '__error__') sheetName = '';
 
 					// If no sheet name specified, use the first worksheet
@@ -1282,8 +1353,23 @@ export class ExcelAI implements INodeType {
 		columnMap: Map<string, number>
 	): Promise<any> {
 		const rowNumber = context.getNodeParameter('rowNumber', itemIndex) as number;
-		const updatedDataInput = context.getNodeParameter('updatedData', itemIndex) as string | object;
-		const data = ExcelAI.parseJsonInput(context, updatedDataInput);
+		const updateMode = context.getNodeParameter('updateMode', itemIndex, 'json') as string;
+
+		let data: Record<string, any> = {};
+
+		if (updateMode === 'fields') {
+			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as any;
+			if (updateFields.fields && Array.isArray(updateFields.fields)) {
+				updateFields.fields.forEach((field: { fieldName: string; fieldValue: string }) => {
+					if (field.fieldName) {
+						data[field.fieldName] = field.fieldValue;
+					}
+				});
+			}
+		} else {
+			const updatedDataInput = context.getNodeParameter('updatedData', itemIndex) as string | object;
+			data = ExcelAI.parseJsonInput(context, updatedDataInput);
+		}
 
 		if (rowNumber < 2) {
 			throw new NodeOperationError(

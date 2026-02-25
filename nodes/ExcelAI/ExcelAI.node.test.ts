@@ -1925,6 +1925,288 @@ describe('ExcelAI Node - Unit Tests', () => {
 			});
 		});
 
+		// ===== UpdateRow Fields Mode Tests =====
+		describe('UpdateRow - Fields Mode', () => {
+			async function buildBuffer(rows: any[][]): Promise<Buffer> {
+				const wb = new (jest.requireActual('exceljs')).Workbook();
+				const ws = wb.addWorksheet('TestSheet');
+				rows.forEach((r) => ws.addRow(r));
+				return wb.xlsx.writeBuffer() as Promise<Buffer>;
+			}
+
+			function setupFieldsParams(extra: Record<string, any> = {}) {
+				mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, defaultVal?: any) => {
+					const base: Record<string, any> = {
+						resource: 'row',
+						operation: 'updateRow',
+						updateMode: 'fields',
+						inputMode: 'filePath',
+						filePath: '/test/data.xlsx',
+						sheetNameOptions: 'TestSheet',
+						autoSave: false,
+						...extra,
+					};
+					return paramName in base ? base[paramName] : defaultVal;
+				});
+			}
+
+			test('should update single field using Fields mode', async () => {
+				const buffer = await buildBuffer([
+					['Name', 'Age', 'Email'],
+					['John', 30, 'john@example.com'],
+				]);
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				setupFieldsParams({
+					rowNumber: 2,
+					updateFields: {
+						fields: [{ fieldName: 'Age', fieldValue: '31' }],
+					},
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json).toHaveProperty('operation', 'updateRow');
+				expect(result[0][0].json).toHaveProperty('rowNumber', 2);
+				expect(result[0][0].json.updatedFields).toContain('Age');
+			});
+
+			test('should update multiple fields using Fields mode', async () => {
+				const buffer = await buildBuffer([
+					['Name', 'Age', 'Email'],
+					['John', 30, 'john@example.com'],
+				]);
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				setupFieldsParams({
+					rowNumber: 2,
+					updateFields: {
+						fields: [
+							{ fieldName: 'Name', fieldValue: 'Jane' },
+							{ fieldName: 'Email', fieldValue: 'jane@example.com' },
+						],
+					},
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json.updatedFields).toEqual(expect.arrayContaining(['Name', 'Email']));
+				expect(result[0][0].json.updatedFields).toHaveLength(2);
+			});
+
+			test('should skip invalid field names in Fields mode', async () => {
+				const buffer = await buildBuffer([
+					['Name', 'Age', 'Email'],
+					['John', 30, 'john@example.com'],
+				]);
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				setupFieldsParams({
+					rowNumber: 2,
+					updateFields: {
+						fields: [
+							{ fieldName: 'Age', fieldValue: '35' },
+							{ fieldName: 'InvalidColumn', fieldValue: 'x' },
+						],
+					},
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json.updatedFields).toEqual(['Age']);
+				expect(result[0][0].json.skippedFields).toEqual(['InvalidColumn']);
+				expect(result[0][0].json.warning).toContain('InvalidColumn');
+			});
+
+			test('should treat empty updateFields as no-op (no updatedFields)', async () => {
+				const buffer = await buildBuffer([
+					['Name', 'Age'],
+					['Alice', 25],
+				]);
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				setupFieldsParams({
+					rowNumber: 2,
+					updateFields: {},
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json.updatedFields).toEqual([]);
+			});
+
+			test('should skip entry with empty fieldName in Fields mode', async () => {
+				const buffer = await buildBuffer([
+					['Name', 'Age'],
+					['Bob', 20],
+				]);
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				setupFieldsParams({
+					rowNumber: 2,
+					updateFields: {
+						fields: [
+							{ fieldName: '', fieldValue: 'ignored' },
+							{ fieldName: 'Age', fieldValue: '21' },
+						],
+					},
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				// empty fieldName should be ignored, only Age updated
+				expect(result[0][0].json.updatedFields).toEqual(['Age']);
+			});
+
+			test('should throw error when updating header row (row 1) in Fields mode', async () => {
+				const buffer = await buildBuffer([
+					['Name', 'Age'],
+					['Carol', 22],
+				]);
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				setupFieldsParams({
+					rowNumber: 1,
+					updateFields: {
+						fields: [{ fieldName: 'Name', fieldValue: 'NewName' }],
+					},
+				});
+
+				await expect(excelAI.execute.call(mockContext)).rejects.toThrow(
+					'Cannot update header row (row 1)'
+				);
+			});
+
+			test('JSON mode still works after updateMode is introduced (backward compat)', async () => {
+				const buffer = await buildBuffer([
+					['Name', 'Score'],
+					['Dave', 80],
+				]);
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, defaultVal?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'updateRow',
+						updateMode: 'json',
+						inputMode: 'filePath',
+						filePath: '/test/data.xlsx',
+						sheetNameOptions: 'TestSheet',
+						rowNumber: 2,
+						updatedData: JSON.stringify({ Score: 95 }),
+						autoSave: false,
+					};
+					return paramName in params ? params[paramName] : defaultVal;
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json.updatedFields).toEqual(['Score']);
+			});
+
+			test('default updateMode (undefined) falls back to JSON mode', async () => {
+				const buffer = await buildBuffer([
+					['Name', 'Score'],
+					['Eve', 70],
+				]);
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, defaultVal?: any) => {
+					const params: Record<string, any> = {
+						resource: 'row',
+						operation: 'updateRow',
+						// updateMode intentionally omitted → falls back to default 'json'
+						inputMode: 'filePath',
+						filePath: '/test/data.xlsx',
+						sheetNameOptions: 'TestSheet',
+						rowNumber: 2,
+						updatedData: JSON.stringify({ Score: 88 }),
+						autoSave: false,
+					};
+					return paramName in params ? params[paramName] : defaultVal;
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json.updatedFields).toEqual(['Score']);
+			});
+
+			test('should update different rows for multiple input items in Fields mode', async () => {
+				// Workbook with 3 data rows
+				const buffer = await buildBuffer([
+					['Name', 'Age', 'Status'],
+					['Alice', 25, 'Active'],
+					['Bob',   30, 'Inactive'],
+					['Carol', 28, 'Active'],
+				]);
+				(global as any).__mockExcelBuffer__ = buffer;
+
+				// Simulate 3 input items, each targeting a different row with different fields
+				mockContext.getInputData.mockReturnValue([
+					{ json: { id: 1 } },
+					{ json: { id: 2 } },
+					{ json: { id: 3 } },
+				]);
+
+				const perItemParams: Record<number, Record<string, any>> = {
+					0: {
+						rowNumber: 2,
+						updateFields: { fields: [{ fieldName: 'Status', fieldValue: 'Inactive' }] },
+					},
+					1: {
+						rowNumber: 3,
+						updateFields: { fields: [{ fieldName: 'Age', fieldValue: '31' }, { fieldName: 'Status', fieldValue: 'Active' }] },
+					},
+					2: {
+						rowNumber: 4,
+						updateFields: { fields: [{ fieldName: 'Name', fieldValue: 'Caroline' }] },
+					},
+				};
+
+				mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, defaultVal?: any) => {
+					const base: Record<string, any> = {
+						resource: 'row',
+						operation: 'updateRow',
+						updateMode: 'fields',
+						inputMode: 'filePath',
+						filePath: '/test/data.xlsx',
+						sheetNameOptions: 'TestSheet',
+						autoSave: false,
+						...(perItemParams[itemIndex] ?? {}),
+					};
+					return paramName in base ? base[paramName] : defaultVal;
+				});
+
+				const result = await excelAI.execute.call(mockContext);
+
+				// Should produce one output item per input item
+				expect(result[0]).toHaveLength(3);
+
+				// Item 0: row 2 — Status updated
+				expect(result[0][0].json).toHaveProperty('success', true);
+				expect(result[0][0].json).toHaveProperty('rowNumber', 2);
+				expect(result[0][0].json.updatedFields).toEqual(['Status']);
+
+				// Item 1: row 3 — Age + Status updated
+				expect(result[0][1].json).toHaveProperty('success', true);
+				expect(result[0][1].json).toHaveProperty('rowNumber', 3);
+				expect(result[0][1].json.updatedFields).toEqual(expect.arrayContaining(['Age', 'Status']));
+				expect(result[0][1].json.updatedFields).toHaveLength(2);
+
+				// Item 2: row 4 — Name updated
+				expect(result[0][2].json).toHaveProperty('success', true);
+				expect(result[0][2].json).toHaveProperty('rowNumber', 4);
+				expect(result[0][2].json.updatedFields).toEqual(['Name']);
+			});
+		});
+
 		describe('FilterRows with Invalid Columns', () => {
 			test('should throw error when filter field does not exist in File Path mode', async () => {
 				const testWorkbook = new (jest.requireActual('exceljs')).Workbook();

@@ -6,7 +6,7 @@
 
 一個強大的 n8n 社群節點，用於對 Excel 檔案執行 CRUD（新增、讀取、更新、刪除）操作，並支援 **AI Agent 整合**，可與 n8n AI Agents 無縫整合，實現自然語言的 Excel 操作。
 
-> **v1.0.12 新增：`includeRowNumber` 開關，讀取（readRows / filterRows）時可選擇是否在輸出中包含 `_rowNumber` 欄位。預設為 `true` 以維持向後相容；純讀取情境設為 `false` 可保持輸出乾淨。**
+> **v1.0.13 新增：`updateMode` 切換，讓 `updateRow` 操作支援 Fields 模式 — 使用類似 Edit Fields 節點的 Add Field 介面逐欄指定更新值，無需撰寫 JSON。預設仍為 `json` 模式，完全向後相容。**
 
 > **v1.0.11 新增：Clear Rows 操作，可一鍵清除所有資料列並保留標題列（可選），支援 AI Agent 呼叫。**
 
@@ -364,7 +364,11 @@ AI 現在可以直接傳遞字串值，無需擔心型態問題：
 - **用途**：更新現有列
 - **參數**：
   - `rowNumber`：要更新的列
-  - `updatedData`：包含要更新欄位的 JSON 物件
+  - `updateMode`：`json`（預設）或 `fields`
+    - **JSON 模式**：透過 `updatedData` 以 JSON 物件提供更新資料
+    - **Fields 模式**：使用 Add Field 介面逐一指定欄位（下拉選單 + 值），類似 Edit Fields 節點，無需撰寫 JSON
+  - `updatedData` *（JSON 模式）*：包含要更新欄位的 JSON 物件
+  - `updateFields` *（Fields 模式）*：一或多筆欄位項目，每筆包含欄位名稱（下拉選單）與值
 - **返回**：成功狀態和已更新的欄位
 - **欄位驗證**：
   - ✅ 自動跳過不存在的欄位，不會中斷執行

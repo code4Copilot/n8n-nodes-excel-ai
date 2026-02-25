@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] - 2026-02-25
+
+### Added
+- **Update Row - Fields Mode**: New `Update Mode` option for the `updateRow` operation
+  - `JSON` mode (default): existing behaviour, provide update data as a JSON object — fully backward compatible
+  - `Fields` mode: Add Field interface similar to the Edit Fields node — select column name from dropdown and enter value individually without writing JSON
+  - `fieldName` uses `getColumns` dynamic dropdown, auto-populated from the target worksheet
+  - Empty or invalid `fieldName` entries are safely skipped
+  - Both modes produce the same `updatedFields` / `skippedFields` output structure
+
+### Tests
+- Added 9 unit tests for Fields mode covering: single field, multiple fields, invalid column skip, empty updateFields, empty fieldName skip, header row error, JSON backward compat, default mode fallback, and multi-item batch update
+- All 100 tests passing
+
 ## [1.0.12] - 2026-02-25
 
 ### Added

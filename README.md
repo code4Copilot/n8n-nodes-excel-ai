@@ -6,7 +6,7 @@
 
 A powerful n8n community node for performing CRUD (Create, Read, Update, Delete) operations on Excel files with **AI Agent support**. Works seamlessly with n8n AI Agents for natural language Excel operations.
 
-> **v1.0.12 新增：`includeRowNumber` 開關，于 `readRows` / `filterRows` 操作中可選擇是否在輸出中包含 `_rowNumber` 欄位。預設為 `true` 以維持向後相容；純讀取情境可設為 `false` 保持輸出乾淨。**
+> **v1.0.13 新增：`updateMode` 切換，讓 `updateRow` 操作支援 Fields 模式 — 使用類似 Edit Fields 節點的 Add Field 介面逐欄指定更新值，無需撰寫 JSON。預設仍為 `json` 模式，完全向後相容。**
 
 > **v1.0.11 新增：Clear Rows 操作，可一鍵清除所有資料列並保留標題列（可選），支援 AI Agent 呼叫。**
 
@@ -364,7 +364,11 @@ The AI can now pass values as strings without worrying about types:
 - **Purpose**: Update existing row
 - **Parameters**:
   - `rowNumber`: Row to update
-  - `updatedData`: JSON object with fields to update
+  - `updateMode`: `json` (default) or `fields`
+    - **JSON mode**: Provide update data as a JSON object via `updatedData`
+    - **Fields mode**: Add each column individually using the Add Field interface (dropdown + value), similar to the Edit Fields node — no JSON required
+  - `updatedData` *(JSON mode only)*: JSON object with fields to update
+  - `updateFields` *(Fields mode only)*: One or more field entries, each with a column name (dropdown) and value
 - **Returns**: Success status and updated fields
 - **Column Validation**:
   - ✅ Automatically skips non-existent columns without breaking execution
