@@ -1260,6 +1260,211 @@ describe('ExcelAI Node - Unit Tests', () => {
 		});
 	});
 
+	// ===== 3.65. includeRowNumber Toggle Tests =====
+	describe('includeRowNumber Toggle', () => {
+		async function buildBuffer(rows: any[][]): Promise<Buffer> {
+			const wb = new (jest.requireActual('exceljs')).Workbook();
+			const ws = wb.addWorksheet('TestSheet');
+			rows.forEach((r) => ws.addRow(r));
+			return wb.xlsx.writeBuffer() as Promise<Buffer>;
+		}
+
+		// --- property definition ---
+		test('should have includeRowNumber property defined in node description', () => {
+			const prop = excelAI.description.properties.find((p: any) => p.name === 'includeRowNumber');
+			expect(prop).toBeDefined();
+			expect(prop?.type).toBe('boolean');
+			expect(prop?.default).toBe(true);
+			expect(prop?.displayOptions?.show?.resource).toContain('row');
+			expect(prop?.displayOptions?.show?.operation).toContain('readRows');
+			expect(prop?.displayOptions?.show?.operation).toContain('filterRows');
+		});
+
+		// --- readRows ---
+		test('Read Rows - includeRowNumber true (default): _rowNumber should be present', async () => {
+			(global as any).__mockExcelBuffer__ = await buildBuffer([
+				['Name', 'Score'],
+				['Alice', 90],
+				['Bob', 85],
+			]);
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'readRows',
+					inputMode: 'filePath',
+					filePath: '/test/data.xlsx',
+					sheetNameOptions: 'TestSheet',
+					startRow: 2,
+					endRow: 0,
+					includeRowNumber: true,
+				};
+				return paramName in params ? params[paramName] : fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('_rowNumber', 2);
+			expect(result[0][1].json).toHaveProperty('_rowNumber', 3);
+			expect(result[0][0].json).toHaveProperty('Name', 'Alice');
+		});
+
+		test('Read Rows - includeRowNumber false: _rowNumber should NOT be present', async () => {
+			(global as any).__mockExcelBuffer__ = await buildBuffer([
+				['Name', 'Score'],
+				['Alice', 90],
+				['Bob', 85],
+			]);
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'readRows',
+					inputMode: 'filePath',
+					filePath: '/test/data.xlsx',
+					sheetNameOptions: 'TestSheet',
+					startRow: 2,
+					endRow: 0,
+					includeRowNumber: false,
+				};
+				return paramName in params ? params[paramName] : fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).not.toHaveProperty('_rowNumber');
+			expect(result[0][1].json).not.toHaveProperty('_rowNumber');
+			expect(result[0][0].json).toHaveProperty('Name', 'Alice');
+			expect(result[0][1].json).toHaveProperty('Name', 'Bob');
+		});
+
+		test('Read Rows - includeRowNumber omitted (uses default true): _rowNumber should be present', async () => {
+			(global as any).__mockExcelBuffer__ = await buildBuffer([
+				['Item', 'Qty'],
+				['Apple', 10],
+			]);
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'readRows',
+					inputMode: 'filePath',
+					filePath: '/test/data.xlsx',
+					sheetNameOptions: 'TestSheet',
+					startRow: 2,
+					endRow: 0,
+					// includeRowNumber intentionally omitted → should fall back to default true
+				};
+				return paramName in params ? params[paramName] : fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result[0].length).toBe(1);
+			expect(result[0][0].json).toHaveProperty('_rowNumber', 2);
+		});
+
+		// --- filterRows ---
+		test('Filter Rows - includeRowNumber true: _rowNumber should be present', async () => {
+			(global as any).__mockExcelBuffer__ = await buildBuffer([
+				['Name', 'Dept'],
+				['Alice', 'IT'],
+				['Bob', 'HR'],
+				['Carol', 'IT'],
+			]);
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/data.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [{ field: 'Dept', operator: 'equals', value: 'IT' }],
+					},
+					conditionLogic: 'and',
+					includeRowNumber: true,
+				};
+				return paramName in params ? params[paramName] : fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).toHaveProperty('_rowNumber', 2);
+			expect(result[0][1].json).toHaveProperty('_rowNumber', 4);
+			expect(result[0][0].json).toHaveProperty('Name', 'Alice');
+			expect(result[0][1].json).toHaveProperty('Name', 'Carol');
+		});
+
+		test('Filter Rows - includeRowNumber false: _rowNumber should NOT be present', async () => {
+			(global as any).__mockExcelBuffer__ = await buildBuffer([
+				['Name', 'Dept'],
+				['Alice', 'IT'],
+				['Bob', 'HR'],
+				['Carol', 'IT'],
+			]);
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/data.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: {
+						conditions: [{ field: 'Dept', operator: 'equals', value: 'IT' }],
+					},
+					conditionLogic: 'and',
+					includeRowNumber: false,
+				};
+				return paramName in params ? params[paramName] : fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result[0].length).toBe(2);
+			expect(result[0][0].json).not.toHaveProperty('_rowNumber');
+			expect(result[0][1].json).not.toHaveProperty('_rowNumber');
+			expect(result[0][0].json).toHaveProperty('Name', 'Alice');
+			expect(result[0][1].json).toHaveProperty('Name', 'Carol');
+			expect(result[0][0].json).toHaveProperty('Dept', 'IT');
+		});
+
+		test('Filter Rows - includeRowNumber false with no conditions: returns all rows without _rowNumber', async () => {
+			(global as any).__mockExcelBuffer__ = await buildBuffer([
+				['Name', 'Score'],
+				['Alice', 90],
+				['Bob', 85],
+				['Carol', 78],
+			]);
+
+			mockContext.getNodeParameter.mockImplementation((paramName: string, _idx: any, fallback?: any) => {
+				const params: Record<string, any> = {
+					resource: 'row',
+					operation: 'filterRows',
+					inputMode: 'filePath',
+					filePath: '/test/data.xlsx',
+					sheetNameOptions: 'TestSheet',
+					filterConditions: { conditions: [] },
+					conditionLogic: 'and',
+					includeRowNumber: false,
+				};
+				return paramName in params ? params[paramName] : fallback;
+			});
+
+			const result = await excelAI.execute.call(mockContext);
+
+			expect(result[0].length).toBe(3);
+			result[0].forEach((item: INodeExecutionData) => {
+				expect(item.json).not.toHaveProperty('_rowNumber');
+			});
+		});
+	});
+
 	// ===== 3.7. Error Handling for Row Operations =====
 	describe('Row Operations - Error Handling', () => {
 		test('Append Row - invalid JSON should throw error', async () => {

@@ -578,6 +578,20 @@ export class ExcelAI implements INodeType {
 				default: true,
 				description: 'Whether to automatically save changes to file',
 			},
+			// Include Row Number Option
+			{
+				displayName: 'Include Row Number',
+				name: 'includeRowNumber',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['row'],
+						operation: ['readRows', 'filterRows'],
+					},
+				},
+				default: true,
+				description: 'Whether to include _rowNumber field in the output. Useful for update/delete operations. Disable if you only need to read data.',
+			},
 		],
 	};
 
@@ -1023,6 +1037,7 @@ export class ExcelAI implements INodeType {
 	): Promise<any[]> {
 		const startRow = context.getNodeParameter('startRow', itemIndex, 2) as number;
 		const endRow = context.getNodeParameter('endRow', itemIndex, 0) as number;
+		const includeRowNumber = context.getNodeParameter('includeRowNumber', itemIndex, true) as boolean;
 
 		const rows: any[] = [];
 		const headerRow = worksheet.getRow(1);
@@ -1036,7 +1051,7 @@ export class ExcelAI implements INodeType {
 
 		for (let rowNum = startRow; rowNum <= actualEndRow; rowNum++) {
 			const row = worksheet.getRow(rowNum);
-			const rowData: any = { _rowNumber: rowNum };
+			const rowData: any = includeRowNumber ? { _rowNumber: rowNum } : {};
 
 			row.eachCell((cell, colNumber) => {
 				const header = headers[colNumber - 1];
@@ -1062,6 +1077,7 @@ export class ExcelAI implements INodeType {
 		inputMode: string
 	): Promise<any[]> {
 		const conditionLogic = context.getNodeParameter('conditionLogic', itemIndex, 'and') as string;
+		const includeRowNumber = context.getNodeParameter('includeRowNumber', itemIndex, true) as boolean;
 		
 		// Get filter conditions based on input mode
 		const filterConditions = inputMode === 'filePath'
@@ -1099,7 +1115,7 @@ export class ExcelAI implements INodeType {
 		worksheet.eachRow((row, rowNumber) => {
 			if (rowNumber === 1) return; // Skip header
 
-			const rowData: any = { _rowNumber: rowNumber };
+			const rowData: any = includeRowNumber ? { _rowNumber: rowNumber } : {};
 			row.eachCell((cell, colNumber) => {
 				const header = headers[colNumber - 1];
 				if (header) {
